@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Shadow -->
+  <ellipse cx="256" cy="480" rx="120" ry="18" fill="#d5dde5" opacity="0.4"/>
+  
+  <!-- Body -->
+  <ellipse cx="256" cy="380" rx="110" ry="100" fill="white" stroke="#2d3436" stroke-width="6"/>
+  <!-- Orange body patches -->
+  <path d="M 160 340 Q 180 300 200 350 Q 180 400 160 380 Z" fill="#e8915a" opacity="0.8"/>
+  <path d="M 310 320 Q 340 300 360 350 Q 350 400 320 380 Z" fill="#e8915a" opacity="0.8"/>
+  
+  <!-- Diploma scroll -->
+  <rect x="270" y="370" width="60" height="25" rx="8" ry="8" fill="#ffeaa7" stroke="#2d3436" stroke-width="3" transform="rotate(-20, 300, 382)"/>
+  <rect x="268" y="368" width="8" height="29" rx="4" ry="4" fill="#ffeaa7" stroke="#2d3436" stroke-width="2" transform="rotate(-20, 272, 382)"/>
+  <rect x="328" y="362" width="8" height="29" rx="4" ry="4" fill="#ffeaa7" stroke="#2d3436" stroke-width="2" transform="rotate(-20, 332, 376)"/>
+  <!-- Ribbon on diploma -->
+  <path d="M 295 395 Q 300 410 292 420" fill="none" stroke="#e17055" stroke-width="3" stroke-linecap="round" transform="rotate(-20, 295, 407)"/>
+  <path d="M 302 395 Q 307 410 312 420" fill="none" stroke="#e17055" stroke-width="3" stroke-linecap="round" transform="rotate(-20, 302, 407)"/>
+  
+  <!-- Left paw holding diploma -->
+  <ellipse cx="300" cy="400" rx="22" ry="18" fill="white" stroke="#2d3436" stroke-width="4"/>
+
+  <!-- Head -->
+  <ellipse cx="256" cy="220" rx="130" ry="120" fill="white" stroke="#2d3436" stroke-width="6"/>
+
+  <!-- Orange head patches -->
+  <path d="M 145 180 Q 170 130 210 180 Q 190 220 155 210 Z" fill="#e8915a"/>
+  <path d="M 300 170 Q 330 120 370 170 Q 360 210 310 200 Z" fill="#e8915a"/>
+  <!-- Forehead orange patch -->
+  <path d="M 230 140 Q 256 110 282 140 Q 270 170 240 170 Z" fill="#e8915a"/>
+
+  <!-- Left Ear -->
+  <polygon points="155,160 120,50 215,125" fill="white" stroke="#2d3436" stroke-width="6" stroke-linejoin="round"/>
+  <polygon points="163,148 137,70 205,130" fill="#ffb8c9"/>
+  <!-- Orange on ear -->
+  <polygon points="155,145 130,75 180,125" fill="#e8915a" opacity="0.5"/>
+
+  <!-- Right Ear -->
+  <polygon points="357,160 392,50 297,125" fill="white" stroke="#2d3436" stroke-width="6" stroke-linejoin="round"/>
+  <polygon points="349,148 375,70 307,130" fill="#ffb8c9"/>
+  <!-- Orange on ear -->
+  <polygon points="357,145 382,75 332,125" fill="#e8915a" opacity="0.5"/>
+
+  <!-- Left Eye -->
+  <ellipse cx="200" cy="215" rx="32" ry="36" fill="#2d3436"/>
+  <ellipse cx="210" cy="205" rx="13" ry="15" fill="white"/>
+  <ellipse cx="195" cy="225" rx="5" ry="6" fill="white" opacity="0.5"/>
+
+  <!-- Right Eye -->
+  <ellipse cx="312" cy="215" rx="32" ry="36" fill="#2d3436"/>
+  <ellipse cx="322" cy="205" rx="13" ry="15" fill="white"/>
+  <ellipse cx="307" cy="225" rx="5" ry="6" fill="white" opacity="0.5"/>
+
+  <!-- Eyebrows (small dots) -->
+  <circle cx="200" cy="175" r="5" fill="#2d3436"/>
+  <circle cx="312" cy="175" r="5" fill="#2d3436"/>
+
+  <!-- Nose -->
+  <path d="M 248 265 L 256 275 L 264 265 Z" fill="#2d3436" stroke="#2d3436" stroke-width="1" stroke-linejoin="round"/>
+
+  <!-- Mouth -->
+  <path d="M 240 280 Q 248 293 256 280" fill="none" stroke="#2d3436" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 256 280 Q 264 293 272 280" fill="none" stroke="#2d3436" stroke-width="4" stroke-linecap="round"/>
+
+  <!-- Whiskers Left -->
+  <line x1="100" y1="240" x2="180" y2="250" stroke="#2d3436" stroke-width="3" stroke-linecap="round"/>
+  <line x1="105" y1="265" x2="180" y2="262" stroke="#2d3436" stroke-width="3" stroke-linecap="round"/>
+  <line x1="110" y1="290" x2="180" y2="275" stroke="#2d3436" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Whiskers Right -->
+  <line x1="412" y1="240" x2="332" y2="250" stroke="#2d3436" stroke-width="3" stroke-linecap="round"/>
+  <line x1="407" y1="265" x2="332" y2="262" stroke="#2d3436" stroke-width="3" stroke-linecap="round"/>
+  <line x1="402" y1="290" x2="332" y2="275" stroke="#2d3436" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Blush -->
+  <ellipse cx="160" cy="265" rx="22" ry="14" fill="#ffb8c9" opacity="0.5"/>
+  <ellipse cx="352" cy="265" rx="22" ry="14" fill="#ffb8c9" opacity="0.5"/>
+
+  <!-- Graduation Cap -->
+  <polygon points="130,115 256,55 382,115 256,175" fill="#34495e"/>
+  <polygon points="140,120 256,65 372,120 256,170" fill="#4a6278"/>
+  <!-- Cap top -->
+  <rect x="230" y="108" width="52" height="15" rx="2" fill="#34495e"/>
+  <!-- Cap button -->
+  <circle cx="256" cy="115" r="7" fill="#f1c40f"/>
+  <!-- Tassel string -->
+  <line x1="375" y1="115" x2="395" y2="165" stroke="#daa520" stroke-width="4" stroke-linecap="round"/>
+  <!-- Tassel end -->
+  <line x1="390" y1="160" x2="385" y2="185" stroke="#daa520" stroke-width="3" stroke-linecap="round"/>
+  <line x1="395" y1="160" x2="395" y2="187" stroke="#daa520" stroke-width="3" stroke-linecap="round"/>
+  <line x1="400" y1="160" x2="405" y2="183" stroke="#daa520" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="395" cy="160" r="6" fill="#f1c40f"/>
+
+  <!-- Right paw -->
+  <ellipse cx="210" cy="410" rx="22" ry="18" fill="white" stroke="#2d3436" stroke-width="4"/>
+</svg>

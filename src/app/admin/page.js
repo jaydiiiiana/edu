@@ -1,19 +1,22 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { curriculum } from "@/data/curriculum";
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState([]);
-  const [activeTab, setActiveTab] = useState("users"); // users, subjects, add
+  const [activeTab, setActiveTab] = useState("users");
   const [customCurriculum, setCustomCurriculum] = useState({});
   const [loading, setLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [selectedSubject, setSelectedSubject] = useState(null); // for subject detail view
+  const [subjectStudents, setSubjectStudents] = useState([]);
+  const [roleUpdating, setRoleUpdating] = useState(null); // track which user is updating
   
-  // New Content State
+  // Create Content State
   const [contentType, setContentType] = useState("subject"); 
   const [newContent, setNewContent] = useState({
-    grade: "Grade 1",
+    grade: "Kindergarten",
     subjectTitle: "",
     subjectIcon: "📚",
     title: "",
@@ -21,7 +24,7 @@ export default function AdminDashboard() {
     questions: [{ q: "", options: ["", "", "", ""], a: "" }]
   });
 
-  const [currentUser, setCurrentUser] = useState(null);
+  const gradeOptions = ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -32,8 +35,6 @@ export default function AdminDashboard() {
            return;
          }
          setCurrentUser(storedUser);
-         
-         // Teachers start on 'subjects' tab and cannot see 'users'
          if (storedUser.role === 'Teacher') setActiveTab("subjects");
 
          const [uRes, cRes] = await Promise.all([
@@ -43,13 +44,8 @@ export default function AdminDashboard() {
          const userData = await uRes.json();
          const currData = await cRes.json();
          
-         if (userData.error || currData.error) {
-           console.error("API Error:", userData.error || currData.error);
-           return;
-         }
-
-         setUsers(userData);
-         setCustomCurriculum(currData);
+         if (!userData.error) setUsers(Array.isArray(userData) ? userData : []);
+         if (!currData.error) setCustomCurriculum(currData);
        } catch (e) { 
          console.error("Fetch failed", e); 
        } finally { 
@@ -59,214 +55,356 @@ export default function AdminDashboard() {
     fetchAllData();
   }, [router]);
 
+  // Change user role
+  const handleRoleChange = async (userId, newRole) => {
+    setRoleUpdating(userId);
+    try {
+      const res = await fetch(`/api/users/${userId}`, { 
+        method: "PATCH", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }) 
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+        alert(`Role updated to ${newRole}! ✅`);
+      } else {
+        alert("Failed to update role: " + (data.error || "Unknown error") + "\n\n⚠️ Make sure you ran the SQL to add the 'role' column!");
+      }
+    } catch (e) {
+      alert("Network error: " + e.message);
+    } finally {
+      setRoleUpdating(null);
+    }
+  };
+
+  // Open subject detail
+  const handleOpenSubject = async (subj, grade) => {
+    setSelectedSubject({ ...subj, grade });
+    setActiveTab("subjectDetail");
+    // Fetch students for this subject
+    try {
+      const res = await fetch(`/api/classroom/${subj.id}?userId=${currentUser.id}`);
+      const data = await res.json();
+      setSubjectStudents(data.students || []);
+    } catch (e) { setSubjectStudents([]); }
+  };
+
+  // Delete a lesson/task
+  const handleDeleteLesson = async (lessonId) => {
+    if (!confirm("Delete this lesson/exam? This cannot be undone!")) return;
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}`, { method: "DELETE" });
+      if (res.ok) {
+        setSelectedSubject({
+          ...selectedSubject,
+          lessons: selectedSubject.lessons.filter(l => l.id !== lessonId)
+        });
+        alert("Deleted! 🗑️");
+      }
+    } catch (e) { alert("Error: " + e.message); }
+  };
+
+  // Delete a subject
+  const handleDeleteSubject = async (subjectId) => {
+    if (!confirm("⚠️ Delete this entire subject and all its lessons? This cannot be undone!")) return;
+    try {
+      const res = await fetch(`/api/subjects/${subjectId}`, { method: "DELETE" });
+      if (res.ok) {
+        setSelectedSubject(null);
+        setActiveTab("subjects");
+        // Remove from local state
+        const updated = { ...customCurriculum };
+        Object.keys(updated).forEach(g => {
+          if (Array.isArray(updated[g])) {
+            updated[g] = updated[g].filter(s => s.id !== subjectId);
+            if (updated[g].length === 0) delete updated[g];
+          }
+        });
+        setCustomCurriculum(updated);
+        alert("Subject deleted! 🗑️");
+      }
+    } catch (e) { alert("Error: " + e.message); }
+  };
+
+  // Remove student from subject
+  const handleRemoveStudent = async (studentId) => {
+    if (!confirm("Remove this student from the class?")) return;
+    try {
+      const res = await fetch(`/api/classroom/${selectedSubject.id}/students/${studentId}`, { method: "DELETE" });
+      if (res.ok) {
+        setSubjectStudents(subjectStudents.filter(s => s.id !== studentId));
+        alert("Student removed! ✅");
+      }
+    } catch (e) { alert("Error: " + e.message); }
+  };
+
+  // Save new content
   const handleSaveContent = async () => {
     try {
+      if (contentType === "subject" && !newContent.subjectTitle) {
+        alert("Please enter a Subject Title! 🐾"); return;
+      }
       if (contentType !== "subject" && !newContent.title) {
-        alert("Please enter a Title for the Lesson/Exam! 🐾");
-        return;
+        alert("Please enter a Title! 🐾"); return;
       }
 
-      if (contentType === "subject" && !newContent.subjectTitle) {
-        alert("Please enter a Subject Title! 🐾");
-        return;
-      }
+      const payload = contentType === "subject" ? {
+        type: "subject",
+        grade: newContent.grade,
+        title: newContent.subjectTitle,
+        icon: newContent.subjectIcon || "📚",
+        userId: currentUser.id
+      } : {
+        grade: newContent.grade,
+        subjectTitle: newContent.subjectTitle,
+        title: newContent.title,
+        content: contentType === "lecture" ? newContent.content : null,
+        questions: contentType === "quiz" ? newContent.questions : null,
+        userId: currentUser.id
+      };
 
       const response = await fetch("/api/curriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          grade: newContent.grade,
-          subjectTitle: newContent.subjectTitle,
-          subjectIcon: newContent.subjectIcon || "📚",
-          lessonTitle: newContent.title,
-          lessonType: contentType,
-          lessonContent: newContent.content,
-          questions: newContent.questions,
-          isSubjectOnly: contentType === "subject",
-          userId: currentUser.id
-        })
+        body: JSON.stringify(payload)
       });
 
       const data = await response.json();
-      if (data.success) {
-        alert(`SUCCESS! 🐾\nSubject: ${newContent.subjectTitle}\nInvite Code: ${data.subjectCode || "N/A"}`);
-        window.location.reload();
-      } else throw new Error(data.error);
+      if (data.error) throw new Error(data.error);
+      alert(`Created successfully! 🐾 ${data.code ? `\nInvite Code: ${data.code}` : ""}`);
+      window.location.reload();
     } catch (e) { alert("Failed! " + e.message); }
-  };
-
-  const handleAddQuestion = () => {
-    setNewContent({ ...newContent, questions: [...newContent.questions, { q: "", options: ["", "", "", ""], a: "" }] });
   };
 
   if (loading) return <div className="flex-center" style={{ height: "100vh" }}>Loading... 🐾</div>;
 
   return (
     <div className="container" style={{ padding: "clamp(1rem, 5vw, 3rem) 0" }}>
+      {/* Header */}
       <header className="premium-card" style={{ 
-        marginBottom: "2rem", display: "flex", flexWrap: "wrap", gap: "1.5rem", justifyContent: "space-between", alignItems: "center", background: "white", border: "1px solid rgba(255,157,204,0.2)", padding: "1.5rem 2rem", boxShadow: "0 10px 30px rgba(255,157,204,0.1)", borderRadius: "30px"
+        marginBottom: "2rem", display: "flex", flexWrap: "wrap", gap: "1rem", justifyContent: "space-between", alignItems: "center", background: "white", border: "1px solid rgba(255,157,204,0.2)", padding: "1.2rem 1.5rem", boxShadow: "0 10px 30px rgba(255,157,204,0.1)", borderRadius: "24px"
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-           <h1 style={{ fontSize: "clamp(1.5rem, 5vw, 2.2rem)", margin: 0, color: "#333" }}>{currentUser?.role === 'Headmaster' ? "Headmaster 👑" : "Teacher 👩‍🏫"}</h1>
-           <span style={{ fontSize: "0.8rem", background: "var(--primary-light)", color: "var(--primary-color)", padding: "4px 10px", borderRadius: "20px", fontWeight: "800" }}>{currentUser?.role} Mode</span>
+           <h1 style={{ fontSize: "clamp(1.2rem, 4vw, 1.8rem)", margin: 0, color: "#333" }}>{currentUser?.role === 'Headmaster' ? "Headmaster 👑" : "Teacher 👩‍🏫"}</h1>
+           <span style={{ fontSize: "0.75rem", background: "var(--primary-light)", color: "var(--primary-color)", padding: "3px 10px", borderRadius: "20px", fontWeight: "800" }}>{currentUser?.role}</span>
         </div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+        <div className="nav-buttons" style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
           {currentUser?.role === 'Headmaster' && (
-            <button className={activeTab === "users" ? "btn-primary" : "btn-secondary"} style={{ padding: "10px 20px" }} onClick={() => setActiveTab("users")}>Users 🐾</button>
+            <button className={activeTab === "users" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("users"); }}>Users 🐾</button>
           )}
-          <button className={activeTab === "subjects" ? "btn-primary" : "btn-secondary"} style={{ padding: "10px 20px" }} onClick={() => setActiveTab("subjects")}>Subjects 🏷️</button>
-          <button className={activeTab === "add" ? "btn-primary" : "btn-secondary"} style={{ padding: "10px 20px" }} onClick={() => setActiveTab("add")}>+ Create 📚</button>
-          <div style={{ width: "2px", height: "30px", background: "#f0f0f0", margin: "0 5px" }} className="desktop-only"></div>
-          <button className="btn-secondary" style={{ padding: "10px 15px", background: "#f8f9fa" }} onClick={() => router.push("/dashboard")}>🏠</button>
-          <button className="btn-secondary" style={{ padding: "10px 15px", background: "#fff5f5", color: "#e03e3e", border: "1px solid #ffe3e3" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
+          <button className={activeTab === "subjects" || activeTab === "subjectDetail" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("subjects"); }}>Subjects 🏷️</button>
+          <button className={activeTab === "add" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => setActiveTab("add")}>+ Create 📚</button>
+          <button className="btn-secondary" style={{ padding: "8px 12px", background: "#f8f9fa", fontSize: "0.8rem" }} onClick={() => router.push("/dashboard")}>🏠</button>
+          <button className="btn-secondary" style={{ padding: "8px 12px", background: "#fff5f5", color: "#e03e3e", border: "1px solid #ffe3e3", fontSize: "0.8rem" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
         </div>
       </header>
 
-      {/* TABS CONTENT */}
+      {/* ========== USERS TAB ========== */}
       {activeTab === "users" && (
         <div className="premium-card">
-          <h2 style={{ marginBottom: "1.5rem" }}>Teachers & Students ({users.length})</h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "600px" }}>
-              <thead>
-                <tr style={{ borderBottom: "2px solid #eee", textAlign: "left", color: "#888", fontSize: "0.8rem" }}>
-                  <th style={{ padding: "15px" }}>USER</th>
-                  <th style={{ padding: "15px" }}>GRADE</th>
-                  <th style={{ padding: "15px" }}>ROLE</th>
-                  <th style={{ padding: "15px" }}>ACTIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                    <td style={{ padding: "15px" }}>{u.name}</td>
-                    <td style={{ padding: "15px" }}>{u.grade}</td>
-                    <td style={{ padding: "15px" }}>
-                       <span style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "0.8rem", background: u.role === 'Headmaster' ? "var(--primary-light)" : u.role === 'Teacher' ? "var(--secondary-light)" : "#eee", color: u.role === 'Headmaster' ? "var(--primary-color)" : u.role === 'Teacher' ? "var(--accent-blue)" : "#777" }}>
-                         {u.role || "Student"}
-                       </span>
-                    </td>
-                    <td style={{ padding: "15px" }}>
-                        <select 
-                          style={{ padding: "5px", borderRadius: "10px", border: "1px solid #ddd", fontSize: "0.75rem" }}
-                          value={u.role || "Student"}
-                          onChange={async (e) => {
-                            const newRole = e.target.value;
-                            const res = await fetch(`/api/users/${u.id}`, { 
-                              method: "PATCH", 
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ role: newRole }) 
-                            });
-                            if (res.ok) window.location.reload();
-                          }}
-                        >
-                          <option value="Student">Student 🎒</option>
-                          <option value="Teacher">Teacher 📖</option>
-                          <option value="Headmaster">Headmaster 👑</option>
-                        </select>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h2 style={{ marginBottom: "1.5rem" }}>All Users ({users.length})</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
+            {users.map((u) => (
+              <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.2rem", background: "#f9fafb", borderRadius: "16px", border: "1px solid #f0f0f0", flexWrap: "wrap", gap: "10px" }}>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                  <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: u.role === "Headmaster" ? "linear-gradient(135deg, var(--primary-light), #fff0f6)" : u.role === "Teacher" ? "linear-gradient(135deg, var(--secondary-light), #e8f4ff)" : "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "0.9rem", color: u.role === "Headmaster" ? "var(--primary-color)" : u.role === "Teacher" ? "var(--accent-blue)" : "#999" }}>
+                    {(u.name || "?")[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <p style={{ fontWeight: "700", margin: 0, fontSize: "0.95rem" }}>{u.name}</p>
+                    <p style={{ fontSize: "0.75rem", opacity: 0.5, margin: 0 }}>{u.grade}</p>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                  <span style={{ padding: "4px 12px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "700", background: u.role === 'Headmaster' ? "var(--primary-light)" : u.role === 'Teacher' ? "var(--secondary-light)" : "#f0f0f0", color: u.role === 'Headmaster' ? "var(--primary-color)" : u.role === 'Teacher' ? "var(--accent-blue)" : "#888" }}>
+                    {u.role || "Student"}
+                  </span>
+                  <select 
+                    style={{ padding: "6px 12px", borderRadius: "12px", border: "2px solid #eee", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer", background: "white" }}
+                    value={u.role || "Student"}
+                    disabled={roleUpdating === u.id}
+                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                  >
+                    <option value="Student">Student 🎒</option>
+                    <option value="Teacher">Teacher 📖</option>
+                    <option value="Headmaster">Headmaster 👑</option>
+                  </select>
+                  {roleUpdating === u.id && <span style={{ fontSize: "0.75rem", color: "var(--primary-color)" }}>Saving...</span>}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
+      {/* ========== SUBJECTS LIST TAB ========== */}
       {activeTab === "subjects" && (
         <div className="premium-card">
            <h2 style={{ marginBottom: "1.5rem" }}>School Subjects 📚</h2>
-           <div className="grid-cols" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
+           <div className="grid-cols" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
               {Object.entries(customCurriculum).map(([grade, subjects]) => (
                 Array.isArray(subjects) ? subjects.map(s => (
-                  <div key={s.id} className="premium-card" style={{ padding: "1.5rem", border: "1px solid #eee", background: "#fcfdfe", display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div key={s.id} className="premium-card" 
+                    style={{ padding: "1.2rem", border: "1px solid #eee", background: "rgba(255,255,255,0.5)", display: "flex", flexDirection: "column", gap: "10px", cursor: "pointer" }}
+                    onClick={() => handleOpenSubject(s, grade)}
+                  >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                       <span style={{ fontSize: "2.5rem" }}>{s.icon}</span>
+                       <span style={{ fontSize: "2.2rem" }}>{s.icon}</span>
                        <span style={{ fontSize: "0.7rem", background: "var(--primary-light)", color: "var(--primary-color)", padding: "2px 10px", borderRadius: "10px", fontWeight: "800" }}>{grade}</span>
                     </div>
-                    <h4 style={{ margin: 0, fontSize: "1.3rem" }}>{s.title}</h4>
-                    
-                    <div style={{ fontSize: "0.8rem", background: "white", padding: "10px", borderRadius: "12px", border: "1px solid #eee" }}>
-                       <strong>Lessons & Exams ({s.lessons?.length || 0}):</strong>
-                       <ul style={{ margin: "5px 0 0 15px", padding: 0, color: "var(--text-muted)" }}>
-                          {s.lessons?.map(l => (
-                            <li key={l.id} style={{ fontSize: "0.75rem" }}>{l.type === "quiz" ? "📝" : "📖"} {l.title}</li>
-                          )) || <li style={{ fontSize: "0.75rem" }}>No lessons yet</li>}
-                       </ul>
+                    <h4 style={{ margin: 0, fontSize: "1.1rem" }}>{s.title}</h4>
+                    <div style={{ display: "flex", gap: "8px", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                      <span>📖 {s.lessons?.length || 0} lessons</span>
+                      <span>•</span>
+                      <span>👥 {s.studentsCount || 0} students</span>
                     </div>
-
-                    <div style={{ fontSize: "0.8rem", background: "var(--secondary-light)", padding: "10px", borderRadius: "12px", color: "var(--accent-blue)" }}>
-                       <strong>Students ({s.students?.length || 0}):</strong>
-                       <p style={{ margin: "5px 0 0 0", fontSize: "0.75rem" }}>
-                          {s.students && s.students.length > 0 ? s.students.join(", ") : "No one joined yet"}
-                       </p>
+                    <div style={{ background: "#f8f9fa", padding: "8px", borderRadius: "10px", textAlign: "center", fontWeight: "700", fontSize: "0.8rem", color: "var(--accent-blue)", border: "1px dashed rgba(9,132,227,0.2)" }}>
+                       {s.code}
                     </div>
-
-                    <div style={{ background: "#fdfdfd", padding: "10px", borderRadius: "10px", textAlign: "center", fontWeight: "bold", border: "1px dashed var(--accent-blue)", fontSize: "0.85rem" }}>
-                       Code: <strong>{s.code}</strong>
-                    </div>
-
-                    <div style={{ display: "flex", gap: "10px", marginTop: "auto" }}>
-                       <button className="btn-secondary" style={{ flex: 1, padding: "8px", fontSize: "0.75rem" }} onClick={() => {
-                          setNewContent({...newContent, grade, subjectTitle: s.title, subjectIcon: s.icon});
-                          setContentType("lecture");
-                          setActiveTab("add");
-                       }}>Add Material</button>
-                    </div>
+                    <button className="btn-secondary" style={{ padding: "8px", fontSize: "0.75rem", width: "100%" }}>
+                      Manage Subject →
+                    </button>
                   </div>
                 )) : null
               ))}
-              {Object.keys(customCurriculum).length === 0 && <p style={{ opacity: 0.5, gridColumn: "1 / -1", textAlign: "center" }}>No custom subjects found yet.</p>}
+              {Object.keys(customCurriculum).length === 0 && <p style={{ opacity: 0.5, gridColumn: "1 / -1", textAlign: "center" }}>No subjects yet. Create one from the "+ Create" tab! 📚</p>}
            </div>
         </div>
       )}
 
+      {/* ========== SUBJECT DETAIL TAB ========== */}
+      {activeTab === "subjectDetail" && selectedSubject && (
+        <div>
+          {/* Back Button */}
+          <button className="btn-secondary" style={{ marginBottom: "1rem", padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("subjects"); }}>← Back to Subjects</button>
+
+          {/* Subject Header */}
+          <div className="premium-card" style={{ marginBottom: "1.5rem", background: "linear-gradient(135deg, var(--primary-light), var(--secondary-light))" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+              <div style={{ display: "flex", gap: "15px", alignItems: "center" }}>
+                <span style={{ fontSize: "3rem" }}>{selectedSubject.icon}</span>
+                <div>
+                  <h2 style={{ marginBottom: "3px" }}>{selectedSubject.title}</h2>
+                  <p style={{ fontSize: "0.85rem", opacity: 0.6 }}>{selectedSubject.grade} • Code: <strong>{selectedSubject.code}</strong></p>
+                </div>
+              </div>
+              <button className="btn-secondary" style={{ background: "#fff5f5", color: "#e03e3e", border: "1px solid #ffe3e3", padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => handleDeleteSubject(selectedSubject.id)}>
+                Delete Subject 🗑️
+              </button>
+            </div>
+          </div>
+
+          {/* Lessons & Exams */}
+          <div className="premium-card" style={{ marginBottom: "1.5rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3>Lessons & Exams ({selectedSubject.lessons?.length || 0})</h3>
+              <button className="btn-primary" style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => {
+                setNewContent({ ...newContent, grade: selectedSubject.grade, subjectTitle: selectedSubject.title, subjectIcon: selectedSubject.icon });
+                setContentType("lecture");
+                setActiveTab("add");
+              }}>+ Add Task</button>
+            </div>
+            {(!selectedSubject.lessons || selectedSubject.lessons.length === 0) ? (
+              <p style={{ opacity: 0.5, textAlign: "center", padding: "2rem" }}>No lessons or exams yet. Click "+ Add Task" above! 📚</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                {selectedSubject.lessons.map((l) => (
+                  <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem", background: "#f9fafb", borderRadius: "14px", border: "1px solid #f0f0f0", flexWrap: "wrap", gap: "8px" }}>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <span style={{ fontSize: "1.3rem" }}>{l.type === "quiz" ? "📝" : "📖"}</span>
+                      <div>
+                        <p style={{ fontWeight: "700", margin: 0, fontSize: "0.9rem" }}>{l.title}</p>
+                        <p style={{ fontSize: "0.7rem", opacity: 0.5, margin: 0 }}>{l.type === "quiz" ? "Exam" : "Lesson"}</p>
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-secondary" 
+                      style={{ background: "#fff5f5", color: "#e03e3e", border: "1px solid #ffe3e3", padding: "6px 14px", fontSize: "0.75rem" }}
+                      onClick={() => handleDeleteLesson(l.id)}
+                    >Delete 🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Enrolled Students */}
+          <div className="premium-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+              <h3>Enrolled Students ({subjectStudents.length})</h3>
+            </div>
+            {subjectStudents.length === 0 ? (
+              <p style={{ opacity: 0.5, textAlign: "center", padding: "2rem" }}>No students enrolled yet. Share the code: <strong>{selectedSubject.code}</strong> 📨</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                {subjectStudents.map((s) => (
+                  <div key={s.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.8rem 1rem", background: "#f9fafb", borderRadius: "14px", border: "1px solid #f0f0f0" }}>
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg, var(--primary-light), var(--secondary-light))", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "0.85rem", color: "var(--primary-color)" }}>
+                        {(s.name || "?")[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <p style={{ fontWeight: "700", margin: 0, fontSize: "0.9rem" }}>{s.name}</p>
+                        <p style={{ fontSize: "0.7rem", opacity: 0.5, margin: 0 }}>{s.grade} • Level {s.level || 1}</p>
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-secondary"
+                      style={{ background: "#fff5f5", color: "#e03e3e", border: "1px solid #ffe3e3", padding: "6px 14px", fontSize: "0.75rem" }}
+                      onClick={() => handleRemoveStudent(s.id)}
+                    >Remove ✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========== CREATE TAB ========== */}
       {activeTab === "add" && (
         <div className="premium-card">
           <h2 style={{ marginBottom: "1.5rem" }}>Content Creator ✍️</h2>
-          <div style={{ display: "flex", gap: "10px", marginBottom: "2rem" }}>
-             <button className={contentType === "subject" ? "btn-primary" : "btn-secondary"} style={{ flex: 1 }} onClick={() => setContentType("subject")}>📚 New Subject</button>
-             <button className={contentType === "lecture" ? "btn-primary" : "btn-secondary"} style={{ flex: 1 }} onClick={() => setContentType("lecture")}>📖 New Lesson</button>
-             <button className={contentType === "quiz" ? "btn-primary" : "btn-secondary"} style={{ flex: 1 }} onClick={() => setContentType("quiz")}>📝 New Exam</button>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "2rem", flexWrap: "wrap" }}>
+             <button className={contentType === "subject" ? "btn-primary" : "btn-secondary"} style={{ flex: 1, padding: "10px", fontSize: "0.85rem", minWidth: "100px" }} onClick={() => setContentType("subject")}>📚 Subject</button>
+             <button className={contentType === "lecture" ? "btn-primary" : "btn-secondary"} style={{ flex: 1, padding: "10px", fontSize: "0.85rem", minWidth: "100px" }} onClick={() => setContentType("lecture")}>📖 Lesson</button>
+             <button className={contentType === "quiz" ? "btn-primary" : "btn-secondary"} style={{ flex: 1, padding: "10px", fontSize: "0.85rem", minWidth: "100px" }} onClick={() => setContentType("quiz")}>📝 Exam</button>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginBottom: "1.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
              <div>
-                <label style={{ fontSize: "0.8rem", opacity: 0.6 }}>Target Grade</label>
-                <select style={{ width: "100%", padding: "12px", borderRadius: "15px", border: "1px solid #eee", background: "#fcfdfe", appearance: "none" }} value={newContent.grade} onChange={(e) => setNewContent({...newContent, grade: e.target.value})}>
-                  {Object.keys(curriculum).map(g => <option key={g} value={g}>{g}</option>)}
+                <label style={{ fontSize: "0.8rem", opacity: 0.6, marginBottom: "4px", display: "block" }}>Target Grade</label>
+                <select style={{ width: "100%", padding: "12px", borderRadius: "14px", border: "2px solid #eee", background: "#f9fafb", fontSize: "0.9rem" }} value={newContent.grade} onChange={(e) => setNewContent({...newContent, grade: e.target.value})}>
+                  {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
              </div>
              <div>
-                <label style={{ fontSize: "0.8rem", opacity: 0.6 }}>{contentType === "subject" ? "Subject Icon" : "Select Subject"}</label>
+                <label style={{ fontSize: "0.8rem", opacity: 0.6, marginBottom: "4px", display: "block" }}>{contentType === "subject" ? "Subject Icon" : "Select Subject"}</label>
                 {contentType === "subject" ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                    <input type="text" placeholder="e.g. 🧪" style={{ width: "100%", padding: "12px", borderRadius: "15px", border: "1px solid #eee" }} value={newContent.subjectIcon} onChange={(e) => setNewContent({...newContent, subjectIcon: e.target.value})} />
-                    <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <input type="text" placeholder="e.g. 🧪" style={{ width: "100%", padding: "12px", borderRadius: "14px", border: "2px solid #eee" }} value={newContent.subjectIcon} onChange={(e) => setNewContent({...newContent, subjectIcon: e.target.value})} />
+                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                       {["📚", "🧪", "🧮", "🎨", "🌍", "🎵", "💻", "🏀", "🍎", "🐾", "🚀", "🧬"].map(icon => (
-                        <button 
-                          key={icon} 
-                          style={{ background: newContent.subjectIcon === icon ? "var(--primary-light)" : "#f8f9fa", border: "1px solid #eee", borderRadius: "10px", padding: "8px", fontSize: "1.2rem", cursor: "pointer", transition: "all 0.2s" }}
-                          onClick={() => setNewContent({...newContent, subjectIcon: icon})}
-                        >
-                          {icon}
-                        </button>
+                        <button key={icon} style={{ background: newContent.subjectIcon === icon ? "var(--primary-light)" : "#f8f9fa", border: "1px solid #eee", borderRadius: "10px", padding: "6px", fontSize: "1.1rem", cursor: "pointer" }}
+                          onClick={() => setNewContent({...newContent, subjectIcon: icon})}>{icon}</button>
                       ))}
                     </div>
                   </div>
                 ) : (
-                  <select style={{ width: "100%", padding: "12px", borderRadius: "15px", border: "1px solid #eee" }} value={newContent.subjectTitle} onChange={(e) => setNewContent({...newContent, subjectTitle: e.target.value})}>
-                    <option value="">-- Choose Subject --</option>
-                    {Object.values(curriculum).flat().map(s => <option key={s.title+s.grade} value={s.title}>{s.title} ({s.grade})</option>)}
-                    {Object.values(customCurriculum).flat().map(s => <option key={s.id} value={s.title}>{s.title} (Custom)</option>)}
+                  <select style={{ width: "100%", padding: "12px", borderRadius: "14px", border: "2px solid #eee" }} value={newContent.subjectTitle} onChange={(e) => setNewContent({...newContent, subjectTitle: e.target.value})}>
+                    <option value="">-- Choose --</option>
+                    {Object.entries(customCurriculum).map(([g, subs]) => 
+                      Array.isArray(subs) ? subs.map(s => <option key={s.id} value={s.title}>{s.title} ({g})</option>) : null
+                    )}
                   </select>
                 )}
              </div>
           </div>
 
           <div style={{ marginBottom: "1.5rem" }}>
-             <label style={{ fontSize: "0.8rem", opacity: 0.6 }}>{contentType === "subject" ? "Subject Title" : "Lesson/Exam Title"}</label>
-             <input type="text" placeholder={contentType === "subject" ? "e.g. Science" : "e.g. Rocket Science 101"} style={{ width: "100%", padding: "12px", borderRadius: "15px", border: "1px solid #eee" }} value={contentType === "subject" ? newContent.subjectTitle : newContent.title} onChange={(e) => {
+             <label style={{ fontSize: "0.8rem", opacity: 0.6, marginBottom: "4px", display: "block" }}>{contentType === "subject" ? "Subject Title" : "Title"}</label>
+             <input type="text" placeholder={contentType === "subject" ? "e.g. Science" : "e.g. Chapter 1"} style={{ width: "100%", padding: "12px", borderRadius: "14px", border: "2px solid #eee" }} value={contentType === "subject" ? newContent.subjectTitle : newContent.title} onChange={(e) => {
                if (contentType === "subject") setNewContent({...newContent, subjectTitle: e.target.value});
                else setNewContent({...newContent, title: e.target.value});
              }} />
@@ -274,7 +412,7 @@ export default function AdminDashboard() {
 
           {contentType === "lecture" && (
              <textarea 
-               style={{ width: "100%", padding: "1.5rem", borderRadius: "15px", border: "1px solid #eee", minHeight: "300px", marginBottom: "2rem", background: "#fcfdfe" }} 
+               style={{ width: "100%", padding: "1.2rem", borderRadius: "14px", border: "2px solid #eee", minHeight: "250px", marginBottom: "1.5rem", background: "#f9fafb", resize: "vertical" }} 
                placeholder="Write your lesson content here..."
                value={newContent.content}
                onChange={(e) => setNewContent({...newContent, content: e.target.value})}
@@ -282,30 +420,30 @@ export default function AdminDashboard() {
           )}
 
           {contentType === "quiz" && (
-            <div style={{ marginBottom: "2rem" }}>
+            <div style={{ marginBottom: "1.5rem" }}>
               {newContent.questions.map((q, idx) => (
-                <div key={idx} style={{ background: "#f8f9fa", padding: "1.5rem", borderRadius: "20px", marginBottom: "1rem", border: "1px solid #eee" }}>
-                   <input type="text" placeholder={`Question ${idx + 1}`} style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "1px solid #ddd", marginBottom: "1rem" }} value={q.q} onChange={(e) => {
+                <div key={idx} style={{ background: "#f8f9fa", padding: "1.2rem", borderRadius: "16px", marginBottom: "0.8rem", border: "1px solid #eee" }}>
+                   <input type="text" placeholder={`Question ${idx + 1}`} style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid #ddd", marginBottom: "8px" }} value={q.q} onChange={(e) => {
                      const qs = [...newContent.questions]; qs[idx].q = e.target.value; setNewContent({...newContent, questions: qs});
                    }} />
-                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                       {q.options.map((opt, oIdx) => (
-                        <input key={oIdx} type="text" placeholder={`Option ${oIdx + 1}`} style={{ padding: "10px", borderRadius: "10px", border: "1px solid #ddd" }} value={opt} onChange={(e) => {
+                        <input key={oIdx} type="text" placeholder={`Option ${oIdx + 1}`} style={{ padding: "8px", borderRadius: "8px", border: "1px solid #ddd" }} value={opt} onChange={(e) => {
                           const qs = [...newContent.questions]; qs[idx].options[oIdx] = e.target.value; setNewContent({...newContent, questions: qs});
                         }} />
                       ))}
                    </div>
-                   <input type="text" placeholder="Correct Answer" style={{ width: "100%", padding: "12px", borderRadius: "10px", border: "var(--accent-green) 1px solid", marginTop: "1rem", background: "#e6ffec" }} value={q.a} onChange={(e) => {
+                   <input type="text" placeholder="Correct Answer" style={{ width: "100%", padding: "10px", borderRadius: "10px", border: "1px solid var(--accent-green)", marginTop: "8px", background: "#e6ffec" }} value={q.a} onChange={(e) => {
                      const qs = [...newContent.questions]; qs[idx].a = e.target.value; setNewContent({...newContent, questions: qs});
                    }} />
                 </div>
               ))}
-              <button className="btn-secondary" style={{ width: "100%", marginBottom: "1.5rem" }} onClick={handleAddQuestion}>+ Add Another Question</button>
+              <button className="btn-secondary" style={{ width: "100%", padding: "10px", fontSize: "0.85rem" }} onClick={() => setNewContent({...newContent, questions: [...newContent.questions, { q: "", options: ["", "", "", ""], a: "" }]})}>+ Add Question</button>
             </div>
           )}
 
-          <button className="btn-primary" style={{ width: "100%", padding: "1.5rem", fontSize: "1.2rem" }} onClick={handleSaveContent}>
-            Confirm and Save {contentType.charAt(0).toUpperCase() + contentType.slice(1)} 🐾
+          <button className="btn-primary" style={{ width: "100%", padding: "1.2rem", fontSize: "1rem" }} onClick={handleSaveContent}>
+            Save {contentType.charAt(0).toUpperCase() + contentType.slice(1)} 🐾
           </button>
         </div>
       )}

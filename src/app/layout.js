@@ -12,14 +12,50 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Cat Academy - Fun Learning!",
-  description: "Educational platform for kids grades 1-6 with cat themes and games.",
+  title: "Cat Academy - Fun Learning! 🐾",
+  description: "The cutest way to learn! Master Math, Science, English and more with your furry friend.",
+  manifest: "/manifest.json",
+  themeColor: "#ff85b3",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Cat Academy",
+  },
+  icons: {
+    icon: "/icon-192.svg",
+    apple: "/icon-192.svg",
+  },
+};
+
+export const viewport = {
+  themeColor: "#ff85b3",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body>{children}</body>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icon-192.svg" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+      <body>
+        {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').catch(() => {});
+              }
+            `,
+          }}
+        />
+      </body>
     </html>
   );
 }

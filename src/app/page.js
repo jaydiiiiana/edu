@@ -42,7 +42,6 @@ export default function LandingPage() {
           <span style={{ fontSize: "1.5rem" }}>🐾</span> Cat Academy
         </div>
         <div className="nav-buttons" style={{ display: "flex", gap: "clamp(0.5rem, 2vw, 1.5rem)", alignItems: "center" }}>
-          <button className="btn-secondary" style={{ padding: "10px 20px", fontSize: "0.95rem" }} onClick={() => alert("App coming soon to iOS & Android! 🐾")}>Download for Mobile 📱</button>
           <button className="btn-secondary" style={{ padding: "10px 20px", fontSize: "0.95rem" }} onClick={() => router.push("/login")}>Login</button>
           <button className="btn-primary" style={{ padding: "10px 24px", fontSize: "0.95rem" }} onClick={() => router.push("/login")}>Join Now 🎓</button>
         </div>

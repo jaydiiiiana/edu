@@ -143,8 +143,56 @@ h1, h2, h3 {
     grid-template-columns: 1fr;
     gap: 1.2rem;
   }
-  h1 { font-size: 1.8rem !important; }
-  h2 { font-size: 1.5rem !important; }
+  h1 { font-size: 2.2rem !important; }
+  h2 { font-size: 1.8rem !important; }
   .premium-card { padding: 1.5rem !important; }
   .container { padding: 1rem; }
+  
+  /* Mobile Navigation */
+  nav {
+    flex-direction: column;
+    gap: 10px;
+    padding: 1rem !important;
+    position: relative !important;
+  }
+  
+  .nav-buttons {
+    width: 100%;
+    justify-content: center;
+    gap: 8px !important;
+  }
+
+  .nav-buttons button {
+    padding: 8px 15px !important;
+    font-size: 0.85rem !important;
+    flex: 1;
+  }
+
+  /* Dashboard Adjustments */
+  .join-bar {
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .join-bar input {
+    width: 100% !important;
+    font-size: 0.9rem !important;
+  }
+
+  .join-bar button {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 { font-size: 1.8rem !important; }
+  .btn-primary, .btn-secondary {
+    padding: 12px 20px !important;
+    width: 100%;
+  }
+  .hero-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
 }

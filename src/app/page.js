@@ -41,7 +41,8 @@ export default function LandingPage() {
         <div style={{ fontSize: "clamp(1.2rem, 4vw, 1.8rem)", fontWeight: "800", display: "flex", alignItems: "center", gap: "12px", color: "#1a1a1a" }}>
           <span style={{ fontSize: "1.5rem" }}>🐾</span> Cat Academy
         </div>
-        <div style={{ display: "flex", gap: "clamp(0.5rem, 2vw, 1.5rem)", alignItems: "center" }}>
+        <div className="nav-buttons" style={{ display: "flex", gap: "clamp(0.5rem, 2vw, 1.5rem)", alignItems: "center" }}>
+          <button className="btn-secondary" style={{ padding: "10px 20px", fontSize: "0.95rem" }} onClick={() => alert("App coming soon to iOS & Android! 🐾")}>Download for Mobile 📱</button>
           <button className="btn-secondary" style={{ padding: "10px 20px", fontSize: "0.95rem" }} onClick={() => router.push("/login")}>Login</button>
           <button className="btn-primary" style={{ padding: "10px 24px", fontSize: "0.95rem" }} onClick={() => router.push("/login")}>Join Now 🎓</button>
         </div>
@@ -65,8 +66,9 @@ export default function LandingPage() {
           <p style={{ fontSize: "clamp(1.1rem, 3vw, 1.5rem)", color: "var(--text-muted)", marginBottom: "3.5rem", lineHeight: "1.7", maxWidth: "700px", margin: "0 auto 3.5rem" }}>
             The most adorable way to master Math, Science, and English. Join thousands of kittens worldwide on a quest for knowledge and leveling up.
           </p>
-          <div style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", justifyContent: "center" }}>
+          <div className="hero-buttons" style={{ display: "flex", gap: "1.5rem", flexWrap: "wrap", justifyContent: "center" }}>
              <button className="btn-primary" style={{ padding: "1.4rem 4rem", fontSize: "1.2rem" }} onClick={() => router.push("/login")}>Get Started Today 🐾</button>
+             <button className="btn-secondary" style={{ padding: "1.4rem 3rem", fontSize: "1.2rem", background: "white", border: "2px solid #eee" }} onClick={() => alert("App coming soon to iOS & Android! 🐾")}>Download for Mobile 📱</button>
           </div>
         </div>
       </header>

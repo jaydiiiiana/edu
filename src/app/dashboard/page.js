@@ -124,21 +124,23 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+        <div className="join-bar" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", width: "100%" }}>
            <div style={{ flex: "1 1 300px", background: "rgba(255,255,255,0.15)", padding: "8px", borderRadius: "50px", display: "flex", gap: "10px", border: "1px solid rgba(255,255,255,0.2)" }}>
               <input 
                 type="text" 
-                placeholder="Subject Code (CAT-ABCD)" 
+                placeholder="Enter Invite Code (CAT-ABCD)" 
                 style={{ flex: 1, background: "none", border: "none", color: "white", padding: "0 15px", fontSize: "0.9rem", outline: "none", fontWeight: "600" }} 
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               />
-              <button className="btn-primary" style={{ background: "white", color: "var(--primary-color)", padding: "8px 20px", fontSize: "0.85rem", boxShadow: "none" }} onClick={handleJoinSubject}>Unlock 🔓</button>
+              <button className="btn-primary" style={{ background: "white", color: "var(--primary-color)", padding: "8px 20px", fontSize: "0.85rem", boxShadow: "none" }} onClick={handleJoinSubject}>Join Class 🏫</button>
            </div>
-           {(user.role === 'Headmaster' || user.role === 'Teacher') && (
-             <button className="btn-secondary" style={{ background: "rgba(0,0,0,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }} onClick={() => router.push("/admin")}>Admin Panel 👑</button>
-           )}
-           <button className="btn-secondary" style={{ background: "rgba(255,255,255,0.1)", color: "white", border: "none" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
+           <div className="nav-buttons" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+             {(user.role === 'Headmaster' || user.role === 'Teacher') && (
+               <button className="btn-secondary" style={{ background: "rgba(0,0,0,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }} onClick={() => router.push("/admin")}>Admin Panel 👑</button>
+             )}
+             <button className="btn-secondary" style={{ background: "rgba(255,255,255,0.1)", color: "white", border: "none" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
+           </div>
         </div>
       </header>
 

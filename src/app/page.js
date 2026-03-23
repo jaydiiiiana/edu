@@ -73,7 +73,7 @@ export default function LandingPage() {
       </header>
 
       {/* Features Section */}
-      <section style={{ background: "#ffffff", padding: "clamp(4rem, 10vh, 8rem) 0" }}>
+      <section style={{ padding: "clamp(4rem, 10vh, 8rem) 0", position: "relative", zIndex: 10 }}>
         <div className="container">
           <div style={{ textAlign: "center", marginBottom: "4rem" }}>
              <h2 style={{ fontSize: "clamp(2rem, 5vw, 3rem)", marginBottom: "1rem" }}>Why Choose Cat Academy? 🌟</h2>

@@ -1,15 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { curriculum } from "@/data/curriculum";
 
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [progress, setProgress] = useState({});
   const [joinCode, setJoinCode] = useState("");
-  const [unlockedSubjects, setUnlockedSubjects] = useState([]);
-  const [fullCurriculum, setFullCurriculum] = useState(curriculum);
+  const [allSubjects, setAllSubjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -25,42 +24,40 @@ export default function Dashboard() {
         // Refresh User Role from DB
         const userRes = await fetch(`/api/users/${parsedUser.id}`);
         const userLatest = await userRes.json();
-        if (userLatest && userLatest.role !== parsedUser.role) {
+        if (userLatest && userLatest.role && userLatest.role !== parsedUser.role) {
            const updated = { ...parsedUser, role: userLatest.role };
            localStorage.setItem("catUser", JSON.stringify(updated));
            setUser(updated);
         }
 
-        const activeRole = (userLatest && userLatest.role) || parsedUser.role;
+        const activeRole = (userLatest && userLatest.role) || parsedUser.role || 'Student';
         const currRes = await fetch(`/api/curriculum?userId=${parsedUser.id}&role=${activeRole}`);
         const currData = await currRes.json();
         
         const storedProgress = JSON.parse(localStorage.getItem("catProgress") || "{}");
         setProgress(storedProgress);
-        
-        const unlocked = JSON.parse(localStorage.getItem("catUnlocked") || "[]");
-        setUnlockedSubjects(unlocked);
 
-        if (currData.error) throw new Error(currData.error);
+        if (currData.error) {
+          console.error("Curriculum error:", currData.error);
+          setAllSubjects([]);
+          return;
+        }
 
-        // Merge curriculum
-        const baseCurr = { ...curriculum };
+        // Flatten all grades into a single subject list
+        const subjects = [];
         Object.keys(currData).forEach(grade => {
-          if (!Array.isArray(currData[grade])) return; // Skip non-array items like errors
-          if (!baseCurr[grade]) baseCurr[grade] = [];
-          
+          if (!Array.isArray(currData[grade])) return;
           currData[grade].forEach(subj => {
-            const existing = baseCurr[grade].find(s => s.title === subj.title);
-            if (existing) {
-              existing.lessons = [...existing.lessons, ...subj.lessons];
-              existing.students = subj.students;
-            } else {
-              baseCurr[grade].push(subj);
-            }
+            subjects.push({ ...subj, grade });
           });
         });
-        setFullCurriculum(baseCurr);
-      } catch (e) { console.error("Data fetch failed", e); }
+        setAllSubjects(subjects);
+      } catch (e) { 
+        console.error("Data fetch failed", e); 
+        setAllSubjects([]);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchData();
   }, [router]);
@@ -79,67 +76,57 @@ export default function Dashboard() {
 
       const data = await response.json();
       if (data.success) {
-        alert("🔓 Success! You've joined the class!");
+        alert("🎉 Success! You've joined the class!");
         window.location.reload();
       } else throw new Error(data.error);
     } catch (e) { alert("Invalid Code! 😿 " + e.message); }
   };
 
-  if (!user) return <div className="flex-center" style={{ height: "100vh" }}>Loading...</div>;
+  if (!user || loading) return <div className="flex-center" style={{ height: "100vh" }}>Loading... 🐾</div>;
 
-  const gradeSubjects = fullCurriculum[user.grade] || [];
-  const allSubjects = gradeSubjects.filter(s => {
-    const isBase = curriculum[user.grade]?.some(bs => bs.title === s.title);
-    const hasJoined = s.students?.includes(user.name);
-    const isAdmin = user.role === 'Headmaster' || user.role === 'Teacher';
-    return isBase || hasJoined || isAdmin;
-  });
-
-  const getProgressPercent = (subjTitle) => {
-    const subjProgress = progress[user.grade]?.[subjTitle] || [];
-    const subjData = allSubjects.find(s => s.title === subjTitle);
-    if (!subjData || subjData.lessons.length === 0) return 0;
-    return Math.round((subjProgress.length / subjData.lessons.length) * 100);
+  const getProgressPercent = (subj) => {
+    const subjProgress = progress[subj.grade]?.[subj.title] || [];
+    if (!subj.lessons || subj.lessons.length === 0) return 0;
+    return Math.round((subjProgress.length / subj.lessons.length) * 100);
   };
 
   return (
     <div className="container" style={{ paddingBottom: "5rem" }}>
       <header className="premium-card" style={{ 
-        marginBottom: "3rem", 
+        marginBottom: "2rem", 
         background: "linear-gradient(135deg, var(--primary-color), var(--accent-pink))", 
         color: "white", 
-        padding: "clamp(1.5rem, 5vw, 3rem)",
         display: "flex",
         flexDirection: "column",
-        gap: "2rem"
+        gap: "1rem"
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.8rem" }}>
           <div>
-            <h1 style={{ color: "white", fontSize: "clamp(1.8rem, 5vw, 3rem)", marginBottom: "0.4rem" }}>Hi, {user.name}! 🐾</h1>
-            <p style={{ fontSize: "1.1rem", opacity: 0.9 }}>Welcome to your <strong>{user.grade}</strong> classroom!</p>
+            <h1 style={{ color: "white", fontSize: "clamp(1.2rem, 4vw, 2.5rem)", marginBottom: "0.2rem" }}>Hi, {user.name}! 🐾</h1>
+            <p style={{ fontSize: "clamp(0.8rem, 2.5vw, 1.1rem)", opacity: 0.9 }}>Welcome to your <strong>{user.grade}</strong> classroom!</p>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.2)", padding: "1rem 2rem", borderRadius: "20px", backdropFilter: "blur(10px)", textAlign: "center" }}>
-            <div style={{ fontSize: "0.8rem", fontWeight: "800", textTransform: "uppercase", marginBottom: "3px" }}>Level</div>
-            <div style={{ fontSize: "2.5rem", fontWeight: "800" }}>{user.level}</div>
+          <div style={{ background: "rgba(255,255,255,0.2)", padding: "0.6rem 1.2rem", borderRadius: "16px", backdropFilter: "blur(10px)", textAlign: "center" }}>
+            <div style={{ fontSize: "0.7rem", fontWeight: "800", textTransform: "uppercase", marginBottom: "2px" }}>Level</div>
+            <div style={{ fontSize: "1.8rem", fontWeight: "800" }}>{user.level}</div>
           </div>
         </div>
 
-        <div className="join-bar" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap", width: "100%" }}>
-           <div style={{ flex: "1 1 300px", background: "rgba(255,255,255,0.15)", padding: "8px", borderRadius: "50px", display: "flex", gap: "10px", border: "1px solid rgba(255,255,255,0.2)" }}>
+        <div className="join-bar" style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+           <div style={{ flex: "1 1 200px", background: "rgba(255,255,255,0.15)", padding: "6px", borderRadius: "50px", display: "flex", gap: "6px", border: "1px solid rgba(255,255,255,0.2)", minWidth: 0 }}>
               <input 
                 type="text" 
-                placeholder="Enter Invite Code (CAT-ABCD)" 
-                style={{ flex: 1, background: "none", border: "none", color: "white", padding: "0 15px", fontSize: "0.9rem", outline: "none", fontWeight: "600" }} 
+                placeholder="Invite Code" 
+                style={{ flex: 1, background: "none", border: "none", color: "white", padding: "0 10px", fontSize: "0.85rem", outline: "none", fontWeight: "600", minWidth: 0 }} 
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               />
-              <button className="btn-primary" style={{ background: "white", color: "var(--primary-color)", padding: "8px 20px", fontSize: "0.85rem", boxShadow: "none" }} onClick={handleJoinSubject}>Join Class 🏫</button>
+              <button className="btn-primary" style={{ background: "white", color: "var(--primary-color)", padding: "7px 14px", fontSize: "0.8rem", boxShadow: "none", whiteSpace: "nowrap" }} onClick={handleJoinSubject}>Join 🏫</button>
            </div>
-           <div className="nav-buttons" style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+           <div className="nav-buttons" style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
              {(user.role === 'Headmaster' || user.role === 'Teacher') && (
-               <button className="btn-secondary" style={{ background: "rgba(0,0,0,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }} onClick={() => router.push("/admin")}>Admin Panel 👑</button>
+               <button className="btn-secondary" style={{ background: "rgba(0,0,0,0.1)", color: "white", border: "1px solid rgba(255,255,255,0.2)", padding: "7px 14px", fontSize: "0.8rem" }} onClick={() => router.push("/admin")}>Admin 👑</button>
              )}
-             <button className="btn-secondary" style={{ background: "rgba(255,255,255,0.1)", color: "white", border: "none" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
+             <button className="btn-secondary" style={{ background: "rgba(255,255,255,0.1)", color: "white", border: "none", padding: "7px 14px", fontSize: "0.8rem" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
            </div>
         </div>
       </header>
@@ -149,27 +136,40 @@ export default function Dashboard() {
         <span style={{ fontSize: "0.9rem", color: "var(--text-muted)", fontWeight: "600" }}>{allSubjects.length} Active Courses</span>
       </div>
 
-      <div className="grid-cols">
-        {allSubjects.map((subj) => {
-          const pct = getProgressPercent(subj.title);
-          return (
-            <div key={subj.id} className="premium-card subject-card" onClick={() => router.push(`/lessons/${user.grade}/${subj.title}`)} style={{ cursor: "pointer" }}>
-              <div style={{ background: "linear-gradient(135deg, #fff5f8 0%, #f0f7ff 100%)", padding: "2rem", borderRadius: "20px", marginBottom: "1.5rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
-                <span style={{ fontSize: "4.5rem", display: "block", position: "relative", zIndex: 1 }} className="animate-bounce">{subj.icon}</span>
-                <div style={{ position: "absolute", bottom: "-10px", right: "-10px", fontSize: "5rem", opacity: 0.05, transform: "rotate(-15deg)" }}>{subj.icon}</div>
+      {allSubjects.length === 0 ? (
+        <div className="premium-card" style={{ textAlign: "center", padding: "4rem 2rem" }}>
+          <p style={{ fontSize: "4rem", marginBottom: "1rem" }}>📭</p>
+          <h3 style={{ marginBottom: "0.5rem" }}>No subjects yet!</h3>
+          <p style={{ opacity: 0.5 }}>
+            {user.role === 'Student' 
+              ? "Ask your teacher for an invite code and enter it above to join a class!" 
+              : "Go to the Admin Panel to create your first subject!"}
+          </p>
+        </div>
+      ) : (
+        <div className="grid-cols">
+          {allSubjects.map((subj) => {
+            const pct = getProgressPercent(subj);
+            return (
+              <div key={subj.id} className="premium-card subject-card" onClick={() => router.push(`/classroom/${subj.id}`)} style={{ cursor: "pointer" }}>
+                <div style={{ background: "linear-gradient(135deg, #fff5f8 0%, #f0f7ff 100%)", padding: "2rem", borderRadius: "20px", marginBottom: "1.5rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                  <span style={{ fontSize: "4.5rem", display: "block", position: "relative", zIndex: 1 }} className="animate-bounce">{subj.icon}</span>
+                  <div style={{ position: "absolute", bottom: "-10px", right: "-10px", fontSize: "5rem", opacity: 0.05, transform: "rotate(-15deg)" }}>{subj.icon}</div>
+                </div>
+                <h3 style={{ fontSize: "1.4rem", marginBottom: "0.3rem" }}>{subj.title}</h3>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: "0.3rem" }}>{subj.grade}</p>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1.2rem" }}>{subj.lessons?.length || 0} Modules</p>
+                <div className="progress-container" style={{ height: "8px", marginBottom: "1.5rem" }}>
+                  <div className="progress-filler" style={{ width: `${pct}%`, background: pct === 100 ? "var(--accent-green)" : "var(--primary-color)" }}></div>
+                </div>
+                <button className="btn-secondary" style={{ width: "100%", padding: "12px", fontSize: "0.85rem" }}>
+                  {pct === 100 ? "Review Content 🎓" : "Open Classroom 🏫"}
+                </button>
               </div>
-              <h3 style={{ fontSize: "1.4rem", marginBottom: "0.5rem" }}>{subj.title}</h3>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1.2rem" }}>{subj.lessons.length} Modules</p>
-              <div className="progress-container" style={{ height: "8px", marginBottom: "1.5rem" }}>
-                <div className="progress-filler" style={{ width: `${pct}%`, background: pct === 100 ? "var(--accent-green)" : "var(--primary-color)" }}></div>
-              </div>
-              <button className="btn-secondary" style={{ width: "100%", padding: "12px", fontSize: "0.85rem" }}>
-                {pct === 100 ? "Review Content 🎓" : "Start Learning 🐾"}
-              </button>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

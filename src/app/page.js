@@ -61,7 +61,7 @@ export default function LandingPage() {
         borderBottom: "1px solid rgba(0,0,0,0.03)" 
       }}>
         <div style={{ fontSize: "clamp(1.2rem, 4vw, 1.8rem)", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px", color: "#1a1a1a" }}>
-          <img src="/icon-192.svg" alt="Cat Academy" style={{ width: "32px", height: "32px" }} /> Cat Academy
+          <img src="/cat-hat-logo.png" alt="Cat Academy" style={{ width: "32px", height: "32px", borderRadius: "8px" }} /> Cat Academy
         </div>
         <div className="nav-buttons" style={{ display: "flex", gap: "clamp(0.5rem, 2vw, 1.5rem)", alignItems: "center" }}>
           <button className="btn-secondary" style={{ padding: "10px 20px", fontSize: "0.95rem" }} onClick={() => router.push("/login")}>Login</button>

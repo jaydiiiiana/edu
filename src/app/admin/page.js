@@ -62,7 +62,7 @@ export default function AdminDashboard() {
       const res = await fetch(`/api/users/${userId}`, { 
         method: "PATCH", 
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: newRole }) 
+        body: JSON.stringify({ role: newRole, requesterId: currentUser.id }) 
       });
       const data = await res.json();
       if (res.ok) {
@@ -220,17 +220,24 @@ export default function AdminDashboard() {
                   <span style={{ padding: "4px 12px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "700", background: u.role === 'Headmaster' ? "var(--primary-light)" : u.role === 'Teacher' ? "var(--secondary-light)" : "#f0f0f0", color: u.role === 'Headmaster' ? "var(--primary-color)" : u.role === 'Teacher' ? "var(--accent-blue)" : "#888" }}>
                     {u.role || "Student"}
                   </span>
-                  <select 
-                    style={{ padding: "6px 12px", borderRadius: "12px", border: "2px solid #eee", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer", background: "white" }}
-                    value={u.role || "Student"}
-                    disabled={roleUpdating === u.id}
-                    onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                  >
-                    <option value="Student">Student 🎒</option>
-                    <option value="Teacher">Teacher 📖</option>
-                    <option value="Headmaster">Headmaster 👑</option>
-                  </select>
-                  {roleUpdating === u.id && <span style={{ fontSize: "0.75rem", color: "var(--primary-color)" }}>Saving...</span>}
+                  {u.id === currentUser?.id ? (
+                    <span style={{ fontSize: "0.75rem", color: "#999", fontStyle: "italic" }}>You (cannot change own role)</span>
+                  ) : u.role === 'Headmaster' ? (
+                    <span style={{ fontSize: "0.75rem", color: "#999", fontStyle: "italic" }}>Cannot change another Headmaster</span>
+                  ) : (
+                    <>
+                      <select 
+                        style={{ padding: "6px 12px", borderRadius: "12px", border: "2px solid #eee", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer", background: "white" }}
+                        value={u.role || "Student"}
+                        disabled={roleUpdating === u.id}
+                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                      >
+                        <option value="Student">Student 🎒</option>
+                        <option value="Teacher">Teacher 📖</option>
+                      </select>
+                      {roleUpdating === u.id && <span style={{ fontSize: "0.75rem", color: "var(--primary-color)" }}>Saving...</span>}
+                    </>
+                  )}
                 </div>
               </div>
             ))}

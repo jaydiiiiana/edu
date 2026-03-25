@@ -15,14 +15,15 @@ export default function Home() {
     setFormData({ ...formData, age });
 
     let suggestedGrade = "";
-    if (age <= 6) suggestedGrade = "Kindergarten";
-    else if (age === 7) suggestedGrade = "Grade 1";
-    else if (age === 8) suggestedGrade = "Grade 2";
-    else if (age === 9) suggestedGrade = "Grade 3";
-    else if (age === 10) suggestedGrade = "Grade 4";
-    else if (age === 11) suggestedGrade = "Grade 5";
-    else if (age >= 12) suggestedGrade = "Grade 6";
-    else suggestedGrade = "Kindergarten";
+    if (age <= 5) suggestedGrade = "Kinder 1";
+    else if (age === 6) suggestedGrade = "Kinder 2";
+    else if (age === 7) suggestedGrade = "Grade 1 - Section 1";
+    else if (age === 8) suggestedGrade = "Grade 2 - Section 1";
+    else if (age === 9) suggestedGrade = "Grade 3 - Section 1";
+    else if (age === 10) suggestedGrade = "Grade 4 - Section 1";
+    else if (age === 11) suggestedGrade = "Grade 5 - Section 1";
+    else if (age >= 12) suggestedGrade = "Grade 6 - Section 1";
+    else suggestedGrade = "Kinder 1";
 
     setFormData((prev) => ({ ...prev, age, grade: suggestedGrade }));
   };
@@ -133,7 +134,13 @@ export default function Home() {
                     value={formData.grade} 
                     onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
                   >
-                    {["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"].map(g => <option key={g} value={g}>{g}</option>)}
+                    {["Kinder 1", "Kinder 2"].map(g => <option key={g} value={g}>{g}</option>)}
+                    {[1, 2, 3, 4, 5, 6].map(gradeNum => {
+                        const sections = gradeNum === 1 ? 5 : 3;
+                        return Array.from({ length: sections }).map((_, i) => (
+                          <option key={`${gradeNum}-${i}`} value={`Grade ${gradeNum} - Section ${i + 1}`}>Grade {gradeNum} - Section {i + 1}</option>
+                        ));
+                    })}
                   </select>
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>

@@ -8,6 +8,7 @@ export default function Dashboard() {
   const [progress, setProgress] = useState({});
   const [joinCode, setJoinCode] = useState("");
   const [allSubjects, setAllSubjects] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,6 +52,10 @@ export default function Dashboard() {
             subjects.push({ ...subj, grade });
           });
         });
+        const annRes = await fetch(`/api/announcements?grade=${parsedUser.grade}`);
+        const annData = await annRes.json();
+        if (Array.isArray(annData)) setAnnouncements(annData);
+        
         setAllSubjects(subjects);
       } catch (e) { 
         console.error("Data fetch failed", e); 
@@ -130,6 +135,29 @@ export default function Dashboard() {
            </div>
         </div>
       </header>
+      
+      {/* Headmaster Announcements */}
+      {announcements.length > 0 && (
+        <div className="premium-card announcement-banner" style={{ 
+          marginBottom: "2rem", 
+          padding: "1rem 1.5rem", 
+          background: "linear-gradient(135deg, #fff9e6, #fffcf0)", 
+          border: "2px solid #ffd700",
+          borderRadius: "16px",
+          display: "flex",
+          gap: "1rem",
+          alignItems: "center"
+        }}>
+          <div style={{ fontSize: "1.5rem" }}>📜</div>
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: 0, fontSize: "0.75rem", fontWeight: "800", color: "#b8860b", textTransform: "uppercase" }}>Headmaster's Bulletin</p>
+            <div style={{ overflow: "hidden", whiteSpace: "nowrap" }}>
+              <p className="marquee-text" style={{ margin: 0, fontWeight: "600", color: "#5d4300" }}>{announcements[0].content}</p>
+            </div>
+          </div>
+          <button className="btn-secondary" style={{ padding: "5px 12px", fontSize: "0.7rem", border: "1px solid #ffd700", background: "white", color: "#b8860b" }} onClick={() => alert(announcements[0].content)}>Full Message 🔍</button>
+        </div>
+      )}
 
       <div style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 style={{ fontSize: "1.8rem" }}>My Subjects 📚</h2>
@@ -150,24 +178,41 @@ export default function Dashboard() {
         <div className="grid-cols">
           {allSubjects.map((subj) => {
             const pct = getProgressPercent(subj);
+            const isPub = subj.is_public;
+
             return (
-              <div key={subj.id} className="premium-card subject-card" onClick={() => router.push(`/classroom/${subj.id}`)} style={{ cursor: "pointer" }}>
-                <div style={{ background: "linear-gradient(135deg, #fff5f8 0%, #f0f7ff 100%)", padding: "2rem", borderRadius: "20px", marginBottom: "1.5rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
+              <div key={subj.id} className="premium-card subject-card" onClick={() => router.push(`/classroom/${subj.id}`)} 
+                style={{ 
+                  cursor: "pointer", 
+                  border: isPub ? "2px solid #ffd700" : "1px solid #f0f0f0",
+                  background: isPub ? "linear-gradient(to bottom, #ffffff, #fffdf0)" : "white",
+                  boxShadow: isPub ? "0 10px 40px rgba(255,215,0,0.15)" : ""
+                }}>
+                <div style={{ background: isPub ? "linear-gradient(135deg, #fff5e6 0%, #fffbed 100%)" : "linear-gradient(135deg, #fff5f8 0%, #f0f7ff 100%)", padding: "2rem", borderRadius: "20px", marginBottom: "1.5rem", textAlign: "center", position: "relative", overflow: "hidden" }}>
+                  {isPub && <span style={{ position: "absolute", top: "10px", right: "10px", fontSize: "1.2rem", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))" }}>👑</span>}
                   <span style={{ fontSize: "4.5rem", display: "block", position: "relative", zIndex: 1 }} className="animate-bounce">{subj.icon}</span>
                   <div style={{ position: "absolute", bottom: "-10px", right: "-10px", fontSize: "5rem", opacity: 0.05, transform: "rotate(-15deg)" }}>{subj.icon}</div>
                 </div>
-                <h3 style={{ fontSize: "1.4rem", marginBottom: "0.3rem" }}>{subj.title}</h3>
+                
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
+                  <h3 style={{ fontSize: "1.4rem", margin: 0 }}>{subj.title}</h3>
+                  {isPub && <span style={{ fontSize: "0.6rem", background: "#ffd700", color: "white", padding: "2px 8px", borderRadius: "20px", fontWeight: "900" }}>OFFICIAL 👑</span>}
+                </div>
+
                 <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: "0.3rem" }}>{subj.grade}</p>
                 <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginBottom: "1.2rem" }}>{subj.lessons?.length || 0} Modules</p>
+                
                 <div className="progress-container" style={{ height: "8px", marginBottom: "1.5rem" }}>
-                  <div className="progress-filler" style={{ width: `${pct}%`, background: pct === 100 ? "var(--accent-green)" : "var(--primary-color)" }}></div>
+                  <div className="progress-filler" style={{ width: `${pct}%`, background: pct === 100 ? "var(--accent-green)" : (isPub ? "#ffd700" : "var(--primary-color)") }}></div>
                 </div>
-                <button className="btn-secondary" style={{ width: "100%", padding: "12px", fontSize: "0.85rem" }}>
-                  {pct === 100 ? "Review Content 🎓" : "Open Classroom 🏫"}
+                
+                <button className="btn-secondary" style={{ width: "100%", padding: "12px", fontSize: "0.85rem", background: isPub ? "#fff9e6" : "", color: isPub ? "#b8860b" : "", border: isPub ? "1px solid #ffd700" : "" }}>
+                  {pct === 100 ? "Review Content 🎓" : (isPub ? "Open Official Classroom 👑" : "Open Classroom 🏫")}
                 </button>
               </div>
             );
           })}
+
         </div>
       )}
     </div>

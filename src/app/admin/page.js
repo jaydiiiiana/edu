@@ -16,7 +16,7 @@ export default function AdminDashboard() {
   // Create Content State
   const [contentType, setContentType] = useState("subject"); 
   const [newContent, setNewContent] = useState({
-    grade: "Kindergarten",
+    grade: "Kinder 1",
     subjectTitle: "",
     subjectIcon: "📚",
     title: "",
@@ -24,8 +24,16 @@ export default function AdminDashboard() {
     questions: [{ q: "", options: ["", "", "", ""], a: "" }],
     isPublic: false
   });
+  const [newAnnouncement, setNewAnnouncement] = useState({ content: "", targetGrade: "" });
+  const [announcements, setAnnouncements] = useState([]);
 
-  const gradeOptions = ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
+  const gradeOptions = [
+    "Kinder 1", "Kinder 2",
+    ...[1,2,3,4,5,6].flatMap(n => {
+       const sections = n === 1 ? 5 : 3;
+       return Array.from({length: sections}, (_, i) => `Grade ${n} - Section ${i+1}`);
+    })
+  ];
 
   useEffect(() => {
     const fetchAllData = async () => {
@@ -38,15 +46,18 @@ export default function AdminDashboard() {
          setCurrentUser(storedUser);
          if (storedUser.role === 'Teacher') setActiveTab("subjects");
 
-         const [uRes, cRes] = await Promise.all([
-           fetch("/api/users"),
-           fetch(`/api/curriculum?userId=${storedUser.id}&role=${storedUser.role}`)
-         ]);
+          const [uRes, cRes, aRes] = await Promise.all([
+            fetch("/api/users"),
+            fetch(`/api/curriculum?userId=${storedUser.id}&role=${storedUser.role}`),
+            fetch("/api/announcements")
+          ]);
          const userData = await uRes.json();
          const currData = await cRes.json();
+         const annData = await aRes.json();
          
          if (!userData.error) setUsers(Array.isArray(userData) ? userData : []);
          if (!currData.error) setCustomCurriculum(currData);
+         if (Array.isArray(annData)) setAnnouncements(annData);
        } catch (e) { 
          console.error("Fetch failed", e); 
        } finally { 
@@ -163,6 +174,23 @@ export default function AdminDashboard() {
     } catch (e) { alert("Failed to update visibility: " + e.message); }
   };
 
+  // Post Announcement
+  const handlePostAnnouncement = async () => {
+    if (!newAnnouncement.content) return;
+    try {
+      const res = await fetch("/api/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...newAnnouncement, authorId: currentUser.id })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setAnnouncements([data, ...announcements]);
+      setNewAnnouncement({ content: "", targetGrade: "" });
+      alert("Announcement posted! 📜✅");
+    } catch (e) { alert("Failed: " + e.message); }
+  };
+
   // Save new content
   const handleSaveContent = async () => {
     try {
@@ -216,7 +244,10 @@ export default function AdminDashboard() {
         </div>
         <div className="nav-buttons" style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
           {currentUser?.role === 'Headmaster' && (
-            <button className={activeTab === "users" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("users"); }}>Users 🐾</button>
+            <>
+              <button className={activeTab === "users" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("users"); }}>Users 🐾</button>
+              <button className={activeTab === "bulletin" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("bulletin"); }}>Bulletin 📜</button>
+            </>
           )}
           <button className={activeTab === "subjects" || activeTab === "subjectDetail" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("subjects"); }}>Subjects 🏷️</button>
           <button className={activeTab === "add" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => setActiveTab("add")}>+ Create 📚</button>
@@ -267,6 +298,48 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+      
+      {/* ========== BULLETIN TAB (Headmaster) ========== */}
+      {activeTab === "bulletin" && (
+        <div className="premium-card">
+           <h2 style={{ marginBottom: "1.5rem" }}>School Announcements 📜</h2>
+           
+           <div className="premium-card" style={{ background: "#fcfdfe", border: "1px solid #eee", padding: "1.5rem", marginBottom: "2rem" }}>
+              <h4>Post New Announcement ✍️</h4>
+              <textarea 
+                placeholder="What's the latest news, Headmaster? 🐾"
+                style={{ width: "100%", padding: "1rem", borderRadius: "14px", border: "1px solid #eee", minHeight: "100px", margin: "1rem 0", background: "white", resize: "vertical" }}
+                value={newAnnouncement.content}
+                onChange={(e) => setNewAnnouncement({...newAnnouncement, content: e.target.value})}
+              />
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                 <select 
+                   style={{ padding: "10px", borderRadius: "10px", border: "1px solid #eee", fontSize: "0.85rem" }}
+                   value={newAnnouncement.targetGrade}
+                   onChange={(e) => setNewAnnouncement({...newAnnouncement, targetGrade: e.target.value})}
+                 >
+                    <option value="">All Grades 🌍</option>
+                    {gradeOptions.map(g => <option key={g} value={g}>{g} Only</option>)}
+                 </select>
+                 <button className="btn-primary" style={{ padding: "10px 24px", fontSize: "0.85rem" }} onClick={handlePostAnnouncement}>Post Bulletin 🚀</button>
+              </div>
+           </div>
+
+           <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <h3>Recent Bulletins</h3>
+              {announcements.map((a, i) => (
+                <div key={i} style={{ padding: "1rem 1.5rem", background: "#f8f9fa", borderRadius: "16px", border: "1px solid #eee" }}>
+                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "0.7rem", fontWeight: "800", color: "var(--primary-color)" }}>{a.target_grade || "SCHOOLWIDE"}</span>
+                      <span style={{ fontSize: "0.7rem", opacity: 0.5 }}>{new Date(a.created_at).toLocaleDateString()}</span>
+                   </div>
+                   <p style={{ margin: 0, fontSize: "0.95rem" }}>{a.content}</p>
+                </div>
+              ))}
+              {announcements.length === 0 && <p style={{ opacity: 0.5, textAlign: "center" }}>No announcements yet.</p>}
+           </div>
         </div>
       )}
 

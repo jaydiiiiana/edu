@@ -12,6 +12,8 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState([]);
   const [showAnnouncements, setShowAnnouncements] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isExpired, setIsExpired] = useState(false);
+  const [expiryDate, setExpiryDate] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,7 +31,7 @@ export default function Dashboard() {
       }
 
       try {
-        // Refresh User Role from DB
+        // 1. Refresh User & Role
         const userRes = await fetch(`/api/users/${parsedUser.id}`);
         const userLatest = await userRes.json();
         if (userLatest && userLatest.role && userLatest.role !== parsedUser.role) {
@@ -39,6 +41,39 @@ export default function Dashboard() {
         }
 
         const activeRole = (userLatest && userLatest.role) || parsedUser.role || 'Student';
+
+        // 2. School Integrity Check (Cascade Freeze)
+        // If I am a student/teacher, I need to check if my Headmaster is expired
+        if (activeRole !== 'Creator') {
+          // Fetch all users to check parents (Simple check for now)
+          const allURes = await fetch("/api/users");
+          const allUData = await allURes.json();
+          if (Array.isArray(allUData)) {
+            // Find my Headmaster
+            let myHeadmaster = null;
+            if (activeRole === 'Headmaster') myHeadmaster = userLatest || parsedUser;
+            else {
+              const myInviter = allUData.find(u => u.id === (userLatest?.invited_by || parsedUser.invited_by));
+              if (myInviter?.role === 'Headmaster') myHeadmaster = myInviter;
+              else if (myInviter?.role === 'Teacher') {
+                myHeadmaster = allUData.find(u => u.id === myInviter.invited_by && u.role === 'Headmaster');
+              }
+            }
+
+            if (myHeadmaster && myHeadmaster.subscription_expires_at) {
+              const now = new Date();
+              const exp = new Date(myHeadmaster.subscription_expires_at);
+              if (now > exp) {
+                // School is frozen!
+                console.log("School Frozen detected!");
+                setIsExpired(true);
+                setExpiryDate(exp.toLocaleDateString());
+                setLoading(false);
+                return;
+              }
+            }
+          }
+        }
         const currRes = await fetch(`/api/curriculum?userId=${parsedUser.id}&role=${activeRole}`);
         const currData = await currRes.json();
         
@@ -112,7 +147,23 @@ export default function Dashboard() {
     } catch (e) { alert("Invalid Code! 😿 " + e.message); }
   };
 
-  if (!user || loading) return <div className="flex-center" style={{ height: "100vh" }}>Loading... 🐾</div>;
+  if (!user || loading) return <div className="flex-center" style={{ height: "100vh" }}>Loading Academy... 🐾</div>;
+
+  if (isExpired) {
+    return (
+      <div className="flex-center" style={{ height: "100vh", background: "#fff5f5", padding: "2rem", textAlign: "center" }}>
+        <div className="premium-card cat-ears" style={{ maxWidth: "500px", border: "2px solid #ef4444" }}>
+           <div style={{ fontSize: "5rem", marginBottom: "1rem" }}>🔒🏫</div>
+           <h2 style={{ color: "#ef4444", marginBottom: "1rem" }}>School Access Paused</h2>
+           <p style={{ color: "#666", lineHeight: "1.6", marginBottom: "2rem" }}>
+              Our school's access was paused on **{expiryDate}**. 🐾 <br />
+              Don't worry kitten! Your progress is safe. Check back again once your Teacher or Headmaster is ready!
+           </p>
+           <button className="btn-secondary" onClick={() => router.push("/")}>Back to Login</button>
+        </div>
+      </div>
+    );
+  }
 
   const getProgressPercent = (subj) => {
     const subjProgress = progress[subj.grade]?.[subj.title] || [];

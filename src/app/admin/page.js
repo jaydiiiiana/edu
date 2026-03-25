@@ -91,9 +91,37 @@ export default function AdminDashboard() {
          const invData = await vRes.json();
          
          if (!userData.error) setUsers(Array.isArray(userData) ? userData : []);
-         if (!currData.error) setCustomCurriculum(currData);
-         if (Array.isArray(annData)) setAnnouncements(annData);
-         if (Array.isArray(invData)) setInvites(invData);
+                  
+          // 2. Cascade School Freeze Check
+          if (storedUser.role !== 'Creator') {
+            const allUData = userData;
+            if (Array.isArray(allUData)) {
+              let myHeadmaster = null;
+              if (storedUser.role === 'Headmaster') myHeadmaster = storedUser;
+              else {
+                const myInviter = allUData.find(u => u.id === (storedUser.invited_by));
+                if (myInviter?.role === 'Headmaster') myHeadmaster = myInviter;
+                else if (myInviter?.role === 'Teacher') {
+                  myHeadmaster = allUData.find(u => u.id === myInviter.invited_by && u.role === 'Headmaster');
+                }
+              }
+
+              if (myHeadmaster && myHeadmaster.subscription_expires_at) {
+                const now = new Date();
+                const exp = new Date(myHeadmaster.subscription_expires_at);
+                if (now > exp) {
+                  setIsExpired(true);
+                  setExpiryDate(exp.toLocaleDateString());
+                  setLoading(false);
+                  return;
+                }
+              }
+            }
+          }
+
+          if (!currData.error) setCustomCurriculum(currData);
+          if (Array.isArray(annData)) setAnnouncements(annData);
+          if (Array.isArray(invData)) setInvites(invData);
        } catch (e) { 
          console.error("Fetch failed", e); 
        } finally { 
@@ -224,6 +252,24 @@ export default function AdminDashboard() {
       setAnnouncements([data, ...announcements]);
       setNewAnnouncement({ content: "", targetGrade: "" });
       alert("Announcement posted! 📜✅");
+    } catch (e) { alert("Failed: " + e.message); }
+  };
+
+  const handleGenerateInvite = async (role) => {
+    try {
+      const res = await fetch("/api/invites", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+           userId: currentUser.id, 
+           roleToGrant: role,
+           durationMonths: 1200 
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setInvites([data, ...invites]);
+      alert(`${role} code generated! 🎫✨`);
     } catch (e) { alert("Failed: " + e.message); }
   };
 

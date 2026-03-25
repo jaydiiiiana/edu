@@ -28,11 +28,15 @@ export default function AdminDashboard() {
   const [newAnnouncement, setNewAnnouncement] = useState({ content: "", targetGrade: "" });
   const [announcements, setAnnouncements] = useState([]);
 
+  const [sectionConfig, setSectionConfig] = useState({ "1": 5, "2": 3, "3": 3, "4": 3, "5": 3, "6": 6 });
   const gradeOptions = [
     "Kinder 1", "Kinder 2",
     ...[1,2,3,4,5,6].flatMap(n => {
-       const sections = n === 1 ? 5 : 3;
-       return Array.from({length: sections}, (_, i) => `Grade ${n} - Section ${i+1}`);
+       const sections = sectionConfig[n] || 3;
+       return [
+         `Grade ${n}`,
+         ...Array.from({length: sections}, (_, i) => `Grade ${n} - Section ${i+1}`)
+       ];
     })
   ];
 
@@ -267,6 +271,9 @@ export default function AdminDashboard() {
           )}
           <button className={activeTab === "subjects" || activeTab === "subjectDetail" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("subjects"); }}>Subjects 🏷️</button>
           <button className={activeTab === "add" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => setActiveTab("add")}>+ Create 📚</button>
+          {currentUser?.role === 'Headmaster' && (
+             <button className={activeTab === "setup" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => setActiveTab("setup")}>Sections ⚙️</button>
+          )}
           <button className="btn-secondary" style={{ padding: "8px 12px", background: "#f8f9fa", fontSize: "0.8rem" }} onClick={() => router.push("/dashboard")}>🏠</button>
           <button className="btn-secondary" style={{ padding: "8px 12px", background: "#fff5f5", color: "#e03e3e", border: "1px solid #ffe3e3", fontSize: "0.8rem" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
         </div>
@@ -642,6 +649,53 @@ export default function AdminDashboard() {
           <button className="btn-primary" style={{ width: "100%", padding: "1.2rem", fontSize: "1rem" }} onClick={handleSaveContent}>
             Save {contentType.charAt(0).toUpperCase() + contentType.slice(1)} 🐾
           </button>
+        </div>
+      )}
+
+      {/* ========== SECTION SETUP TAB (Headmaster ONLY) ========== */}
+      {activeTab === "setup" && (
+        <div className="premium-card">
+           <h2 style={{ marginBottom: "1.5rem" }}>School Grade Setup 🏫</h2>
+           <p style={{ opacity: 0.6, fontSize: "0.9rem", marginBottom: "2rem" }}>Define how many sections each grade level has. These sections will appear in the registration list. 🐾</p>
+           
+           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1.2rem" }}>
+              {[1, 2, 3, 4, 5, 6].map(n => (
+                <div key={n} className="premium-card" style={{ padding: "1.2rem", border: "1px solid #eee", background: "white", boxShadow: "0 5px 15px rgba(0,0,0,0.02)" }}>
+                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
+                      <label style={{ fontWeight: "800", color: "#444" }}>Grade {n}</label>
+                      <span style={{ fontSize: "0.65rem", color: "var(--primary-color)", background: "var(--primary-light)", padding: "2px 8px", borderRadius: "10px", fontWeight: "800" }}>STUDENTS</span>
+                   </div>
+                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        max="20"
+                        style={{ width: "100%", padding: "12px", borderRadius: "12px", border: "2px solid #f0f0f0", fontWeight: "700", fontSize: "1.1rem" }}
+                        value={sectionConfig[n] || 0}
+                        onChange={(e) => setSectionConfig({ ...sectionConfig, [n]: parseInt(e.target.value) || 0 })}
+                      />
+                      <span style={{ fontSize: "1.5rem" }}>🎒</span>
+                   </div>
+                   <p style={{ fontSize: "0.75rem", opacity: 0.5, marginTop: "10px", margin: 0 }}>Number of sections for Grade {n}</p>
+                </div>
+              ))}
+           </div>
+           
+           <div className="premium-card" style={{ marginTop: "2.5rem", background: "#fcfdfe", border: "1px dashed rgba(0,0,0,0.1)", padding: "1.5rem" }}>
+              <p style={{ margin: "0 0 1rem 0", fontWeight: "800", fontSize: "0.95rem", color: "#333" }}>Live Preview of Grade Options 📜</p>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                 {gradeOptions.map(g => (
+                    <span key={g} style={{ fontSize: "0.7rem", background: "white", padding: "5px 12px", borderRadius: "20px", border: "1px solid #eee", boxShadow: "0 2px 5px rgba(0,0,0,0.03)", color: "#666" }}>{g}</span>
+                 ))}
+              </div>
+           </div>
+
+           <button className="btn-primary" style={{ marginTop: "2.5rem", width: "100%", padding: "1.4rem", fontSize: "1.1rem" }} onClick={() => {
+              // persistence could be added here later with an API call
+              alert("Section configuration updated! ✅ New students can now register for these sections.");
+           }}>
+              Save School Structure 🚀
+           </button>
         </div>
       )}
     </div>

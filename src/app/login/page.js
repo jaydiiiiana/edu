@@ -15,8 +15,7 @@ export default function Home() {
     setFormData({ ...formData, age });
 
     let suggestedGrade = "";
-    if (age <= 5) suggestedGrade = "Kinder 1";
-    else if (age === 6) suggestedGrade = "Kinder 2";
+    if (age <= 6) suggestedGrade = "Kinder 1";
     else if (age === 7) suggestedGrade = "Grade 1 - Section 1";
     else if (age === 8) suggestedGrade = "Grade 2 - Section 1";
     else if (age === 9) suggestedGrade = "Grade 3 - Section 1";
@@ -137,9 +136,14 @@ export default function Home() {
                     {["Kinder 1", "Kinder 2"].map(g => <option key={g} value={g}>{g}</option>)}
                     {[1, 2, 3, 4, 5, 6].map(gradeNum => {
                         const sections = gradeNum === 1 ? 5 : 3;
-                        return Array.from({ length: sections }).map((_, i) => (
-                          <option key={`${gradeNum}-${i}`} value={`Grade ${gradeNum} - Section ${i + 1}`}>Grade {gradeNum} - Section {i + 1}</option>
-                        ));
+                        return (
+                          <React.Fragment key={gradeNum}>
+                            <option value={`Grade ${gradeNum}`}>Grade {gradeNum}</option>
+                            {Array.from({ length: sections }).map((_, i) => (
+                              <option key={`${gradeNum}-${i}`} value={`Grade ${gradeNum} - Section ${i + 1}`}>Grade {gradeNum} - Section {i + 1}</option>
+                            ))}
+                          </React.Fragment>
+                        );
                     })}
                   </select>
                 </div>

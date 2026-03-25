@@ -125,6 +125,9 @@ export default function Dashboard() {
       }
     };
     fetchData();
+    
+    const syncInterval = setInterval(fetchData, 15000);
+    return () => clearInterval(syncInterval);
   }, [router]);
 
   const handleJoinSubject = async () => {
@@ -183,7 +186,7 @@ export default function Dashboard() {
       }}>
         <div className="dashboard-header-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.8rem" }}>
           <div>
-            <h1 style={{ color: "white", fontSize: "clamp(1.2rem, 4vw, 2.5rem)", margin: 0 }}>Hi, {user.name}! 🐾</h1>
+            <h1 style={{ color: "white", fontSize: "clamp(1.2rem, 4vw, 2.5rem)", margin: 0 }}>Hi, {user.name}! <button title="Sync Data" style={{ background: "none", border: "none", fontSize: "1.2rem", cursor: "pointer", opacity: 0.3 }} onClick={() => window.location.reload()}>🔄</button>🐾</h1>
             <p style={{ fontSize: "clamp(0.8rem, 2.5vw, 1.1rem)", opacity: 0.9, margin: 0 }}>Welcome to your <strong>{user.grade}</strong> classroom!</p>
           </div>
           <div className="badges" style={{ display: "flex", gap: "10px", alignItems: "center" }}>

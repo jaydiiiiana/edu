@@ -58,6 +58,10 @@ export default function CreatorPanel() {
       setLoading(false);
     };
     init();
+    
+    // Auto-Sync every 15 seconds
+    const syncInterval = setInterval(init, 15000);
+    return () => clearInterval(syncInterval);
   }, [router]);
 
   const renewSubscription = async (hmId, months) => {
@@ -131,7 +135,7 @@ export default function CreatorPanel() {
       <header className="premium-card cat-ears" style={{ background: "linear-gradient(135deg, #1a1a1a, #333)", color: "white", marginBottom: "3rem", padding: "3rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
         <div>
            <h1 style={{ fontSize: "3rem", color: "var(--primary-color)", margin: 0 }}>Creator Workspace 🌌</h1>
-           <p style={{ opacity: 0.8, margin: 0 }}>Manage the growth of Cat Academy and its schools.</p>
+           <p style={{ opacity: 0.8, margin: 0 }}>Manage the growth of Cat Academy and its schools. <button title="Sync Data" style={{ background: "none", border: "none", fontSize: "1rem", cursor: "pointer", marginLeft: "10px", opacity: 0.3 }} onClick={() => window.location.reload()}>🔄</button></p>
         </div>
         <button className="btn-secondary" style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "white", padding: "10px 25px" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
       </header>

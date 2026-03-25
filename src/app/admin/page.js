@@ -142,6 +142,10 @@ export default function AdminDashboard() {
        }
     };
     fetchAllData();
+    
+    // Auto-Sync every 15 seconds (keeps freeze status/users updated)
+    const syncInterval = setInterval(fetchAllData, 15000);
+    return () => clearInterval(syncInterval);
   }, [router]);
 
   // Change user role
@@ -369,6 +373,7 @@ export default function AdminDashboard() {
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
            <h1 style={{ fontSize: "clamp(1.2rem, 4vw, 1.8rem)", margin: 0, color: "#333" }}>{currentUser?.role === 'Headmaster' ? "Headmaster 👑" : "Teacher 👩‍🏫"}</h1>
            <span style={{ fontSize: "0.75rem", background: "var(--primary-light)", color: "var(--primary-color)", padding: "3px 10px", borderRadius: "20px", fontWeight: "800" }}>{currentUser?.role}</span>
+           <button title="Sync Data" style={{ background: "none", border: "none", fontSize: "1rem", cursor: "pointer", opacity: 0.3 }} onClick={() => window.location.reload()}>🔄</button>
         </div>
         <div className="nav-buttons" style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
           {currentUser?.role === 'Headmaster' && (

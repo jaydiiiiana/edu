@@ -76,6 +76,23 @@ export default function CreatorPanel() {
     } catch (e) { alert("Renewal Failed: " + e.message); }
   };
 
+  const freezeSubscription = async (hmId) => {
+    if (!confirm("❄️ FREEZE SCHOOL: This will instantly block the Headmaster and all their students from accessing the dashboard. Proceed?")) return;
+    try {
+      const res = await fetch("/api/admin/freeze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: currentUser.id, targetUserId: hmId })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      
+      // Update local state
+      setHeadmasters(headmasters.map(hm => hm.id === hmId ? { ...hm, subscription_expires_at: data.newExpiry } : hm));
+      alert("School has been FROZEN. 🧊 access is now blocked.");
+    } catch (e) { alert("Freeze Failed: " + e.message); }
+  };
+
   const generateHeadmasterCode = async () => {
     try {
       const res = await fetch("/api/invites", {
@@ -111,9 +128,12 @@ export default function CreatorPanel() {
 
   return (
     <div className="container" style={{ padding: "4rem 1rem" }}>
-      <header className="premium-card cat-ears" style={{ background: "linear-gradient(135deg, #1a1a1a, #333)", color: "white", marginBottom: "3rem", padding: "3rem" }}>
-        <h1 style={{ fontSize: "3rem", color: "var(--primary-color)" }}>Creator Workspace 🌌</h1>
-        <p style={{ opacity: 0.8 }}>Manage the growth of Cat Academy and its schools.</p>
+      <header className="premium-card cat-ears" style={{ background: "linear-gradient(135deg, #1a1a1a, #333)", color: "white", marginBottom: "3rem", padding: "3rem", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" }}>
+        <div>
+           <h1 style={{ fontSize: "3rem", color: "var(--primary-color)", margin: 0 }}>Creator Workspace 🌌</h1>
+           <p style={{ opacity: 0.8, margin: 0 }}>Manage the growth of Cat Academy and its schools.</p>
+        </div>
+        <button className="btn-secondary" style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "white", padding: "10px 25px" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
       </header>
 
       <div className="premium-card cat-ears" style={{ marginBottom: "3rem" }}>
@@ -174,7 +194,15 @@ export default function CreatorPanel() {
                      className="btn-primary" 
                      style={{ padding: "8px 15px", fontSize: "0.8rem" }}
                      onClick={() => renewSubscription(hm.id, renewDuration)}
-                   >RENEW / UNFREEZE 🔓</button>
+                   >RENEW 🔓</button>
+                   
+                   {new Date(hm.subscription_expires_at) > new Date() && (
+                      <button 
+                        className="btn-secondary" 
+                        style={{ padding: "8px 15px", fontSize: "0.8rem", background: "#fee2e2", color: "#ef4444", borderColor: "#fecaca" }}
+                        onClick={() => freezeSubscription(hm.id)}
+                      >FREEZE ❄️</button>
+                   )}
                 </div>
               </div>
             ))}
@@ -247,7 +275,7 @@ export default function CreatorPanel() {
          <span style={{ position: "absolute", left: "-20px", top: "-20px", fontSize: "10rem", opacity: 0.05 }}>⚠️</span>
       </div>
 
-      <button className="btn-secondary" style={{ marginTop: "3rem" }} onClick={() => router.push("/dashboard")}>← Back to Dashboard</button>
+      <button className="btn-secondary" style={{ marginTop: "3rem", width: "100%", padding: "15px" }} onClick={() => { localStorage.removeItem("catUser"); router.push("/"); }}>Logout 🚪</button>
     </div>
   );
 }

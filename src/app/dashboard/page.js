@@ -23,6 +23,10 @@ export default function Dashboard() {
       }
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
+      if (parsedUser.role === 'Creator') {
+        router.push("/creator");
+        return;
+      }
 
       try {
         // Refresh User Role from DB

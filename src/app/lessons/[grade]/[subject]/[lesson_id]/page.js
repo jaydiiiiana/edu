@@ -128,10 +128,11 @@ export default function W3StyleLessonPage() {
         left: 0,
         top: 0
       }} className="desktop-sidebar">
-        <div style={{ padding: "2rem", borderBottom: "1px solid #f0f0f0", fontWeight: "bold", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-           <span>{subjectTitle} Chapters</span>
-           <button className="mobile-only" onClick={() => setSidebarOpen(false)} style={{ border: "none", background: "none", fontSize: "1.5rem" }}>×</button>
+        <div style={{ padding: "1.5rem 2rem", borderBottom: "1px solid #f0f0f0", fontWeight: "bold", display: "flex", justifyContent: "space-between", alignItems: "center", background: "var(--primary-light)", color: "var(--primary-color)" }}>
+           <span style={{ fontSize: "0.9rem", letterSpacing: "0.5px" }}>📚 CHAPTERS</span>
+           <button className="mobile-only" onClick={() => setSidebarOpen(false)} style={{ border: "none", background: "none", fontSize: "1.8rem", color: "var(--primary-color)", cursor: "pointer" }}>×</button>
         </div>
+
         <nav style={{ padding: "1rem 0" }}>
           {lessonsInSubject.map((l, idx) => (
             <div 
@@ -153,14 +154,25 @@ export default function W3StyleLessonPage() {
         </nav>
       </aside>
 
+
+      {/* Sidebar Overlay for Mobile */}
+      {sidebarOpen && (
+        <div 
+          className="mobile-only" 
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 999, backdropFilter: "blur(2px)" }}
+        />
+      )}
+
       {/* Main Content Area */}
-      <main style={{ flex: 1, marginLeft: "var(--sidebar-offset, 280px)", paddingBottom: "5rem" }}>
+      <main style={{ flex: 1, paddingBottom: "5rem" }} className="main-content">
         
         {/* Top bar for mobile */}
-        <div className="mobile-only" style={{ padding: "1rem", borderBottom: "1px solid #eee", display: "flex", gap: "1rem", alignItems: "center" }}>
-           <button className="btn-secondary" style={{ padding: "8px 12px" }} onClick={() => setSidebarOpen(true)}>☰ Chapters</button>
-           <span style={{ fontWeight: "bold" }}>{lesson.title}</span>
+        <div className="mobile-only-flex" style={{ padding: "0.8rem 1rem", borderBottom: "1px solid #eee", display: "flex", gap: "10px", alignItems: "center", background: "white", position: "sticky", top: 0, zIndex: 50 }}>
+           <button className="btn-secondary" style={{ padding: "8px 15px", fontSize: "0.8rem", border: "1px solid var(--primary-color)", background: "var(--primary-light)", color: "var(--primary-color)" }} onClick={() => setSidebarOpen(true)}>☰ Chapters</button>
+           <span style={{ fontWeight: "800", fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lesson.title}</span>
         </div>
+
 
         {/* Lesson Header */}
         <header style={{ padding: "clamp(2rem, 5vw, 4rem) 2rem", background: "white", borderBottom: "1px solid #f9f9f9" }}>
@@ -243,13 +255,17 @@ export default function W3StyleLessonPage() {
       <style jsx>{`
         @media (min-width: 769px) {
           .desktop-sidebar { transform: translateX(0) !important; }
-          .mobile-only { display: none !important; }
-          :root { --sidebar-offset: 280px; }
+          .mobile-only, .mobile-only-flex { display: none !important; }
+          .main-content { margin-left: 280px !important; }
         }
         @media (max-width: 768px) {
-          main { marginLeft: 0 !important; }
-          .mobile-only { display: flex !important; }
+          .mobile-only { display: block !important; }
+          .mobile-only-flex { display: flex !important; }
+          .main-content { margin-left: 0 !important; }
+          header { padding: 2rem 1rem !important; }
+          .container { padding: 1.5rem 1rem !important; }
         }
+
         .correct { border: 2px solid var(--accent-green) !important; background: #e6ffec !important; font-weight: 800; }
         .wrong { border: 2px solid #ff5e5e !important; background: #ffe6e6 !important; font-weight: 800; }
       `}</style>

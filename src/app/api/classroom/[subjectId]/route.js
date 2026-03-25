@@ -8,17 +8,20 @@ const supabase = createClient(
 
 export async function GET(req, { params }) {
   try {
-    const { subjectId } = params;
+    const { subjectId } = await params;
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
+    const uId = isNaN(userId) ? userId : parseInt(userId);
+    const sId = isNaN(subjectId) ? subjectId : parseInt(subjectId);
+
     // Fetch user role
     let userRole = "Student";
-    if (userId) {
+    if (uId) {
       const { data: userData } = await supabase
         .from("users")
         .select("role")
-        .eq("id", userId)
+        .eq("id", uId)
         .single();
       if (userData) userRole = userData.role || "Student";
     }
@@ -29,28 +32,31 @@ export async function GET(req, { params }) {
     const { data: subject, error: subjErr } = await supabase
       .from("subjects")
       .select("*")
-      .eq("id", subjectId)
+      .eq("id", sId)
       .single();
 
-    if (subjErr) throw new Error("Subject not found! 😿");
+    if (subjErr) {
+      console.error("Subject fetch error:", subjErr);
+      return NextResponse.json({ error: `Subject not found (ID: ${sId})! 😿` }, { status: 404 });
+    }
 
     // Check access: teacher must own the subject, student must be enrolled
     if (isTeacher) {
       // Teachers can only manage their own subjects (Headmaster can see all)
-      if (userRole === "Teacher" && subject.created_by && subject.created_by != userId) {
+      if (userRole === "Teacher" && subject.created_by && subject.created_by != uId) {
         return NextResponse.json({ error: "You don't own this subject! 😿" }, { status: 403 });
       }
     } else {
       // Students must be enrolled
-      const { data: enrollment } = await supabase
+      const { data: enrollment, error: enrollErr } = await supabase
         .from("subject_enrollments")
         .select("user_id")
-        .eq("user_id", userId)
-        .eq("subject_id", subjectId)
+        .eq("user_id", uId)
+        .eq("subject_id", sId)
         .maybeSingle();
 
-      if (!enrollment) {
-        return NextResponse.json({ error: "You are not enrolled in this class! 😿" }, { status: 403 });
+      if (enrollErr || !enrollment) {
+        return NextResponse.json({ error: "You are not enrolled in this class! 😿 Please join using the invite code." }, { status: 403 });
       }
     }
 
@@ -58,7 +64,7 @@ export async function GET(req, { params }) {
     const { data: lessons } = await supabase
       .from("lessons")
       .select("*")
-      .eq("subject_id", subjectId)
+      .eq("subject_id", sId)
       .order("display_order", { ascending: true });
 
     // For students: strip quiz answers so they can't cheat

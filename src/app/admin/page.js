@@ -69,7 +69,7 @@ export default function AdminDashboard() {
         setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
         alert(`Role updated to ${newRole}! ✅`);
       } else {
-        alert("Failed to update role: " + (data.error || "Unknown error") + "\n\n⚠️ Make sure you ran the SQL to add the 'role' column!");
+        alert("Failed to update role: " + (data.error || "Unknown error"));
       }
     } catch (e) {
       alert("Network error: " + e.message);
@@ -94,7 +94,7 @@ export default function AdminDashboard() {
   const handleDeleteLesson = async (lessonId) => {
     if (!confirm("Delete this lesson/exam? This cannot be undone!")) return;
     try {
-      const res = await fetch(`/api/lessons/${lessonId}`, { method: "DELETE" });
+      const res = await fetch(`/api/lessons/${lessonId}?requesterId=${currentUser.id}`, { method: "DELETE" });
       if (res.ok) {
         setSelectedSubject({
           ...selectedSubject,
@@ -109,7 +109,7 @@ export default function AdminDashboard() {
   const handleDeleteSubject = async (subjectId) => {
     if (!confirm("⚠️ Delete this entire subject and all its lessons? This cannot be undone!")) return;
     try {
-      const res = await fetch(`/api/subjects/${subjectId}`, { method: "DELETE" });
+      const res = await fetch(`/api/subjects/${subjectId}?requesterId=${currentUser.id}`, { method: "DELETE" });
       if (res.ok) {
         setSelectedSubject(null);
         setActiveTab("subjects");
@@ -131,7 +131,7 @@ export default function AdminDashboard() {
   const handleRemoveStudent = async (studentId) => {
     if (!confirm("Remove this student from the class?")) return;
     try {
-      const res = await fetch(`/api/classroom/${selectedSubject.id}/students/${studentId}`, { method: "DELETE" });
+      const res = await fetch(`/api/classroom/${selectedSubject.id}/students/${studentId}?requesterId=${currentUser.id}`, { method: "DELETE" });
       if (res.ok) {
         setSubjectStudents(subjectStudents.filter(s => s.id !== studentId));
         alert("Student removed! ✅");

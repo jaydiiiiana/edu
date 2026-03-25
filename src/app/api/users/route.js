@@ -1,19 +1,22 @@
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export async function GET() {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const { data: users, error } = await supabase
+      .from("users")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    // Fetch all users for admin
-    const response = await fetch(`${supabaseUrl}/rest/v1/users?select=*`, {
-      headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` }
-    });
-    const users = await response.json();
-
+    if (error) throw error;
     return NextResponse.json(users);
   } catch (error) {
-    console.error(error);
+    console.error("GET /api/users error:", error);
     return NextResponse.json({ error: "Failed to fetch users! 😿" }, { status: 500 });
   }
 }

@@ -1,15 +1,22 @@
+import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export async function GET(req, { params }) {
   try {
-    const { id } = params;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const response = await fetch(`${supabaseUrl}/rest/v1/users?id=eq.${id}&select=*`, {
-      headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` }
-    });
-    const users = await response.json();
-    return NextResponse.json(users[0] || null);
+    const { id } = await params;
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json(user);
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
@@ -17,61 +24,62 @@ export async function GET(req, { params }) {
 
 export async function PATCH(req, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { role, requesterId } = body;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
     // --- Authorization checks ---
     if (!requesterId) {
       return NextResponse.json({ error: "Unauthorized: No requester ID provided." }, { status: 401 });
     }
 
-    // Prevent changing own role
     if (requesterId === id) {
       return NextResponse.json({ error: "You cannot change your own role." }, { status: 403 });
     }
 
-    // Prevent promoting to Headmaster
     if (role === "Headmaster") {
       return NextResponse.json({ error: "Cannot promote users to Headmaster via this endpoint." }, { status: 403 });
     }
 
     // Verify requester is a Headmaster
-    const requesterRes = await fetch(`${supabaseUrl}/rest/v1/users?id=eq.${requesterId}&select=role`, {
-      headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` }
-    });
-    const [requester] = await requesterRes.json();
-    if (!requester || requester.role !== "Headmaster") {
+    const { data: requester, error: reqError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", requesterId)
+      .single();
+
+    if (reqError || !requester || requester.role !== "Headmaster") {
       return NextResponse.json({ error: "Only the Headmaster can change user roles." }, { status: 403 });
     }
 
     // Verify target user is NOT a Headmaster
-    const targetRes = await fetch(`${supabaseUrl}/rest/v1/users?id=eq.${id}&select=role`, {
-      headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` }
-    });
-    const [targetUser] = await targetRes.json();
+    const { data: targetUser, error: targetError } = await supabase
+      .from("users")
+      .select("role")
+      .eq("id", id)
+      .single();
+
     if (targetUser && targetUser.role === "Headmaster") {
       return NextResponse.json({ error: "Cannot change the role of another Headmaster." }, { status: 403 });
     }
 
     // --- Perform the update ---
-    const response = await fetch(`${supabaseUrl}/rest/v1/users?id=eq.${id}`, {
-      method: "PATCH",
-      headers: { 
-        "apikey": supabaseKey, 
-        "Authorization": `Bearer ${supabaseKey}`,
-        "Content-Type": "application/json",
-        "Prefer": "return=representation"
-      },
-      body: JSON.stringify({ role })
-    });
-    
-    const [updatedUser] = await response.json();
+    const { data: updatedUser, error: updateError } = await supabase
+      .from("users")
+      .update({ role })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (updateError) {
+      console.error("Supabase update error:", updateError);
+      return NextResponse.json({ error: `Database error: ${updateError.message}` }, { status: 500 });
+    }
+
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Failed to update user! 😿" }, { status: 500 });
+    console.error("PATCH /api/users/[id] error:", error);
+    return NextResponse.json({ error: "Failed to update user: " + error.message }, { status: 500 });
   }
 }
+

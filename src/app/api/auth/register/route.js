@@ -22,6 +22,7 @@ export async function POST(req) {
       password,
       age: parseInt(age),
       grade,
+      role: "Student",
       exp: 0,
       level: 1,
       created_at: new Date().toISOString()

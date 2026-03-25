@@ -12,6 +12,7 @@ export default function ClassroomPage() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("stream");
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Teacher: create task
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -28,12 +29,19 @@ export default function ClassroomPage() {
       try {
         const res = await fetch(`/api/classroom/${subjectId}?userId=${parsed.id}`);
         const data = await res.json();
-        if (data.error) throw new Error(data.error);
+        if (data.error) {
+          setErrorMessage(data.error);
+          setLoading(false);
+          return;
+        }
         setSubject(data.subject);
         setStudents(data.students || []);
       } catch (e) {
         console.error("Failed to load classroom", e);
-      } finally { setLoading(false); }
+        setErrorMessage(e.message);
+      } finally { 
+        setLoading(false); 
+      }
     };
     init();
   }, [subjectId, router]);
@@ -64,7 +72,7 @@ export default function ClassroomPage() {
   const handleRemoveStudent = async (studentId) => {
     if (!confirm("Remove this student from the class?")) return;
     try {
-      const res = await fetch(`/api/classroom/${subjectId}/students/${studentId}`, { method: "DELETE" });
+      const res = await fetch(`/api/classroom/${subjectId}/students/${studentId}?requesterId=${user.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       setStudents(students.filter(s => s.id !== studentId));
@@ -73,8 +81,9 @@ export default function ClassroomPage() {
 
   if (loading) return <div className="flex-center" style={{ height: "100vh" }}>Loading Classroom... 🐾</div>;
   if (!subject) return (
-    <div className="flex-center" style={{ height: "100vh", flexDirection: "column", gap: "1rem" }}>
-      <h2>Classroom not found! 😿</h2>
+    <div className="flex-center" style={{ height: "100vh", flexDirection: "column", gap: "1.5rem", padding: "2rem", textAlign: "center" }}>
+      <div style={{ fontSize: "5rem" }}>😿</div>
+      <h2 style={{ maxWidth: "500px" }}>{errorMessage || "Classroom not found!"}</h2>
       <button className="btn-secondary" onClick={() => router.push("/dashboard")}>Back to Dashboard</button>
     </div>
   );

@@ -31,19 +31,14 @@ export default function W3StyleLessonPage() {
       setUser(JSON.parse(storedUser));
       
       const res = await fetch("/api/curriculum");
+      if (!res.ok) return;
       const currData = await res.json();
       
       const baseCurr = { ...curriculum };
       Object.keys(currData).forEach(g => {
         if (!baseCurr[g]) baseCurr[g] = [];
-        currData[g].forEach(subj => {
-          const existing = baseCurr[g].find(s => s.title === subj.title);
-          if (existing) {
-            existing.lessons = [...existing.lessons, ...subj.lessons];
-          } else {
-            baseCurr[g].push(subj);
-          }
-        });
+        // Append all subjects without merging by title
+        baseCurr[g] = [...baseCurr[g], ...currData[g]];
       });
       setLocalCurriculum(baseCurr);
     };
@@ -52,8 +47,13 @@ export default function W3StyleLessonPage() {
 
   if (!user) return <div className="flex-center" style={{ height: "100vh" }}>Loading...</div>;
 
-  const subjectData = localCurriculum[grade]?.find((s) => s.title === subjectTitle);
+  // Find the SPECIFIC subject that contains this lesson ID
+  const subjectsInGrade = localCurriculum[grade] || [];
+  const subjectData = subjectsInGrade.find(s => s.lessons?.some(l => l.id == lessonId)) || 
+                     subjectsInGrade.find(s => s.title === subjectTitle); // fallback
+  
   const lessonsInSubject = subjectData?.lessons || [];
+
   const lesson = lessonsInSubject.find(l => l.id == lessonId); // Use == for ID match
   const lessonIdx = lessonsInSubject.findIndex(l => l.id == lessonId);
 

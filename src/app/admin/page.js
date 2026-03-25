@@ -12,6 +12,7 @@ export default function AdminDashboard() {
   const [selectedSubject, setSelectedSubject] = useState(null); // for subject detail view
   const [subjectStudents, setSubjectStudents] = useState([]);
   const [roleUpdating, setRoleUpdating] = useState(null); // track which user is updating
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Create Content State
   const [contentType, setContentType] = useState("subject"); 
@@ -272,59 +273,101 @@ export default function AdminDashboard() {
       </header>
 
       {/* ========== USERS TAB ========== */}
-      {activeTab === "users" && (
-        <div className="premium-card">
-          <h2 style={{ marginBottom: "1.5rem" }}>All Users ({users.length})</h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
-            {users.map((u) => (
-              <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.2rem", background: "#f9fafb", borderRadius: "16px", border: "1px solid #f0f0f0", flexWrap: "wrap", gap: "10px" }}>
-                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                  <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: u.role === "Headmaster" ? "linear-gradient(135deg, var(--primary-light), #fff0f6)" : u.role === "Teacher" ? "linear-gradient(135deg, var(--secondary-light), #e8f4ff)" : "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "0.9rem", color: u.role === "Headmaster" ? "var(--primary-color)" : u.role === "Teacher" ? "var(--accent-blue)" : "#999" }}>
-                    {(u.name || "?")[0].toUpperCase()}
+      {activeTab === "users" && (() => {
+        const filteredUsers = users.filter(u => u.name?.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        const grouped = filteredUsers.reduce((acc, u) => {
+          if (u.role === 'Headmaster') {
+             acc['1_Headmaster'] = [...(acc['1_Headmaster'] || []), u];
+          } else if (u.role === 'Teacher') {
+             acc['2_Teachers'] = [...(acc['2_Teachers'] || []), u];
+          } else {
+             const g = u.grade || 'Unassigned Students';
+             acc[`3_${g}`] = [...(acc[`3_${g}`] || []), u];
+          }
+          return acc;
+        }, {});
+        
+        const sortedKeys = Object.keys(grouped).sort();
+
+        return (
+          <div className="premium-card">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
+              <h2 style={{ margin: 0 }}>All Academy Users ({filteredUsers.length}{searchQuery && ` of ${users.length}`})</h2>
+              <input 
+                type="text" 
+                placeholder="Search by name 🔍" 
+                style={{ padding: "10px 20px", borderRadius: "30px", border: "2px solid #eee", fontSize: "0.9rem", minWidth: "250px", outline: "none" }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}>
+              {sortedKeys.map(catKey => {
+                const title = catKey.startsWith('1_') ? 'Headmaster & Administration 👑' : 
+                              catKey.startsWith('2_') ? 'Teachers 👩‍🏫' : 
+                              `${catKey.substring(2)} 🎒`;
+                const catUsers = grouped[catKey];
+                return (
+                  <div key={catKey}>
+                    <h3 style={{ marginBottom: "1rem", color: "var(--primary-dark)", borderBottom: "2px solid var(--primary-light)", paddingBottom: "0.5rem", fontSize: "1.2rem" }}>
+                      {title} <span style={{ opacity: 0.5, fontSize: "0.9rem" }}>({catUsers.length})</span>
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
+                      {catUsers.map((u) => (
+                        <div key={u.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1rem 1.2rem", background: "#f9fafb", borderRadius: "16px", border: "1px solid #f0f0f0", flexWrap: "wrap", gap: "10px" }}>
+                          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                            <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: u.role === "Headmaster" ? "linear-gradient(135deg, var(--primary-light), #fff0f6)" : u.role === "Teacher" ? "linear-gradient(135deg, var(--secondary-light), #e8f4ff)" : "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "800", fontSize: "0.9rem", color: u.role === "Headmaster" ? "var(--primary-color)" : u.role === "Teacher" ? "var(--accent-blue)" : "#999" }}>
+                              {(u.name || "?")[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <p style={{ fontWeight: "700", margin: 0, fontSize: "0.95rem" }}>{u.name}</p>
+                              {currentUser?.role === 'Headmaster' ? (
+                                 <select 
+                                   style={{ fontSize: "0.7rem", border: "1px solid #eee", padding: "2px 5px", background: "none", borderRadius: "5px", color: "#888" }}
+                                   value={u.grade}
+                                   onChange={(e) => handleGradeChange(u.id, e.target.value)}
+                                 >
+                                    {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
+                                 </select>
+                              ) : (
+                                 <p style={{ fontSize: "0.75rem", opacity: 0.5, margin: 0 }}>{u.grade}</p>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                            <span style={{ padding: "4px 12px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "700", background: u.role === 'Headmaster' ? "var(--primary-light)" : u.role === 'Teacher' ? "var(--secondary-light)" : "#f0f0f0", color: u.role === 'Headmaster' ? "var(--primary-color)" : u.role === 'Teacher' ? "var(--accent-blue)" : "#888" }}>
+                              {u.role || "Student"}
+                            </span>
+                            {u.id === currentUser?.id ? (
+                              <span style={{ fontSize: "0.75rem", color: "#999", fontStyle: "italic" }}>You (cannot change own role)</span>
+                            ) : u.role === 'Headmaster' ? (
+                              <span style={{ fontSize: "0.75rem", color: "#999", fontStyle: "italic" }}>Cannot change another Headmaster</span>
+                            ) : (
+                              <>
+                                <select 
+                                  style={{ padding: "6px 12px", borderRadius: "12px", border: "2px solid #eee", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer", background: "white" }}
+                                  value={u.role || "Student"}
+                                  disabled={roleUpdating === u.id}
+                                  onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                                >
+                                  <option value="Student">Student 🎒</option>
+                                  <option value="Teacher">Teacher 📖</option>
+                                </select>
+                                {roleUpdating === u.id && <span style={{ fontSize: "0.75rem", color: "var(--primary-color)" }}>Saving...</span>}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div>
-                    <p style={{ fontWeight: "700", margin: 0, fontSize: "0.95rem" }}>{u.name}</p>
-                    {currentUser?.role === 'Headmaster' ? (
-                       <select 
-                         style={{ fontSize: "0.7rem", border: "1px solid #eee", padding: "2px 5px", background: "none", borderRadius: "5px", color: "#888" }}
-                         value={u.grade}
-                         onChange={(e) => handleGradeChange(u.id, e.target.value)}
-                       >
-                          {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
-                       </select>
-                    ) : (
-                       <p style={{ fontSize: "0.75rem", opacity: 0.5, margin: 0 }}>{u.grade}</p>
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                  <span style={{ padding: "4px 12px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "700", background: u.role === 'Headmaster' ? "var(--primary-light)" : u.role === 'Teacher' ? "var(--secondary-light)" : "#f0f0f0", color: u.role === 'Headmaster' ? "var(--primary-color)" : u.role === 'Teacher' ? "var(--accent-blue)" : "#888" }}>
-                    {u.role || "Student"}
-                  </span>
-                  {u.id === currentUser?.id ? (
-                    <span style={{ fontSize: "0.75rem", color: "#999", fontStyle: "italic" }}>You (cannot change own role)</span>
-                  ) : u.role === 'Headmaster' ? (
-                    <span style={{ fontSize: "0.75rem", color: "#999", fontStyle: "italic" }}>Cannot change another Headmaster</span>
-                  ) : (
-                    <>
-                      <select 
-                        style={{ padding: "6px 12px", borderRadius: "12px", border: "2px solid #eee", fontSize: "0.8rem", fontWeight: "600", cursor: "pointer", background: "white" }}
-                        value={u.role || "Student"}
-                        disabled={roleUpdating === u.id}
-                        onChange={(e) => handleRoleChange(u.id, e.target.value)}
-                      >
-                        <option value="Student">Student 🎒</option>
-                        <option value="Teacher">Teacher 📖</option>
-                      </select>
-                      {roleUpdating === u.id && <span style={{ fontSize: "0.75rem", color: "var(--primary-color)" }}>Saving...</span>}
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       
       {/* ========== BULLETIN TAB (Headmaster) ========== */}
       {activeTab === "bulletin" && (

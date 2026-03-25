@@ -324,4 +324,26 @@ h1, h2, h3 {
     flex-direction: column !important;
     gap: 1.5rem !important;
   }
+  
+  /* Announcements and Headers */
+  .announcement-banner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    gap: 0.8rem !important;
+  }
+  
+  .announcement-banner button {
+    width: 100% !important;
+  }
+  
+  .dashboard-header-top {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  
+  .dashboard-header-top .badges {
+    align-self: flex-end;
+    margin-top: -40px;
+  }
 }

@@ -126,12 +126,12 @@ export default function Dashboard() {
         flexDirection: "column",
         gap: "1rem"
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.8rem" }}>
+        <div className="dashboard-header-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.8rem" }}>
           <div>
-            <h1 style={{ color: "white", fontSize: "clamp(1.2rem, 4vw, 2.5rem)", marginBottom: "0.2rem" }}>Hi, {user.name}! 🐾</h1>
-            <p style={{ fontSize: "clamp(0.8rem, 2.5vw, 1.1rem)", opacity: 0.9 }}>Welcome to your <strong>{user.grade}</strong> classroom!</p>
+            <h1 style={{ color: "white", fontSize: "clamp(1.2rem, 4vw, 2.5rem)", margin: 0 }}>Hi, {user.name}! 🐾</h1>
+            <p style={{ fontSize: "clamp(0.8rem, 2.5vw, 1.1rem)", opacity: 0.9, margin: 0 }}>Welcome to your <strong>{user.grade}</strong> classroom!</p>
           </div>
-          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <div className="badges" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
             <div style={{ position: "relative", cursor: "pointer" }} onClick={() => setShowAnnouncements(true)}>
                <span style={{ fontSize: "1.5rem" }}>📣</span>
                {announcements.length > 0 && <div style={{ position: "absolute", top: "-5px", right: "-5px", background: "white", color: "var(--primary-color)", borderRadius: "50%", width: "16px", height: "16px", fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", border: "2px solid var(--primary-color)" }}>{announcements.length}</div>}

@@ -34,7 +34,10 @@ export default function Home() {
       const data = await response.json();
       if (data.success) {
         localStorage.setItem("catUser", JSON.stringify(data.user));
-        router.push("/dashboard");
+        const role = data.user.role;
+        if (role === 'Creator') router.push("/creator");
+        else if (role === 'Headmaster' || role === 'Teacher') router.push("/admin");
+        else router.push("/dashboard");
       } else { setError(data.error); }
     } catch (e) { setError("Connect error! 😿 Check if server is running."); }
   };
@@ -46,7 +49,10 @@ export default function Home() {
       const data = await response.json();
       if (data.success) {
         localStorage.setItem("catUser", JSON.stringify(data.user));
-        router.push("/dashboard");
+        const role = data.user.role;
+        if (role === 'Creator') router.push("/creator");
+        else if (role === 'Headmaster' || role === 'Teacher') router.push("/admin");
+        else router.push("/dashboard");
       } else { setError(data.error); }
     } catch (e) { setError("Connect error! 😿 Check if server is running."); }
   };

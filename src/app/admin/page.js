@@ -56,28 +56,41 @@ export default function AdminDashboard() {
     const fetchAllData = async () => {
        try {
          const storedUser = JSON.parse(localStorage.getItem("catUser"));
-         if (!storedUser || storedUser.role === 'Student') {
+         if (!storedUser) { // If no user in local storage, redirect to home
+           router.push("/");
+           return;
+         }
+
+         // 1. REFRESH CURRENT USER FROM DATABASE (Real-time role/subscription check)
+         const uOneRes = await fetch(`/api/users/${storedUser.id}`);
+         const userLatest = await uOneRes.json();
+         const activeUser = { ...storedUser, ...userLatest };
+         localStorage.setItem("catUser", JSON.stringify(activeUser));
+         setCurrentUser(activeUser);
+
+         if (activeUser.role === 'Student') {
            router.push("/");
            return;
          }
          
-         if (storedUser.role === 'Creator') {
+         if (activeUser.role === 'Creator') {
            router.push("/creator");
            return;
          }
 
-          // Check for Subscription Expiration (Headmaster only)
-          if (storedUser.role === 'Headmaster' && storedUser.subscription_expires_at) {
+          // 2. Headmaster Expiry Check
+          if (activeUser.role === 'Headmaster' && activeUser.subscription_expires_at) {
              const now = new Date();
-             const exp = new Date(storedUser.subscription_expires_at);
+             const exp = new Date(activeUser.subscription_expires_at);
              if (now > exp) {
                setIsExpired(true);
                setExpiryDate(exp.toLocaleDateString());
+               setLoading(false);
+               return;
              }
           }
 
-         setCurrentUser(storedUser);
-         if (storedUser.role === 'Teacher') setActiveTab("subjects");
+         if (activeUser.role === 'Teacher') setActiveTab("subjects");
 
           const [uRes, cRes, aRes, vRes] = await Promise.all([
             fetch("/api/users"),

@@ -40,6 +40,7 @@ export default function RootLayout({ children }) {
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/cat-hat-logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/cat-hat-logo.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />

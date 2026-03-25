@@ -21,7 +21,8 @@ export default function AdminDashboard() {
     subjectIcon: "📚",
     title: "",
     content: "",
-    questions: [{ q: "", options: ["", "", "", ""], a: "" }]
+    questions: [{ q: "", options: ["", "", "", ""], a: "" }],
+    isPublic: false
   });
 
   const gradeOptions = ["Kindergarten", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"];
@@ -139,6 +140,29 @@ export default function AdminDashboard() {
     } catch (e) { alert("Error: " + e.message); }
   };
 
+  // Toggle Visibility
+  const handleToggleVisibility = async (newVal) => {
+    try {
+      const res = await fetch(`/api/subjects/${selectedSubject.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublic: newVal, userId: currentUser.id })
+      });
+      if (res.ok) {
+        setSelectedSubject({ ...selectedSubject, is_public: newVal });
+        // update local list
+        const updated = { ...customCurriculum };
+        Object.keys(updated).forEach(g => {
+           if (Array.isArray(updated[g])) {
+              updated[g] = updated[g].map(s => s.id === selectedSubject.id ? { ...s, is_public: newVal } : s);
+           }
+        });
+        setCustomCurriculum(updated);
+        alert(`Visibility updated to ${newVal ? 'Public' : 'Private'}! 🐾`);
+      }
+    } catch (e) { alert("Failed to update visibility: " + e.message); }
+  };
+
   // Save new content
   const handleSaveContent = async () => {
     try {
@@ -154,7 +178,8 @@ export default function AdminDashboard() {
         grade: newContent.grade,
         title: newContent.subjectTitle,
         icon: newContent.subjectIcon || "📚",
-        userId: currentUser.id
+        userId: currentUser.id,
+        isPublic: newContent.isPublic
       } : {
         grade: newContent.grade,
         subjectTitle: newContent.subjectTitle,
@@ -258,7 +283,10 @@ export default function AdminDashboard() {
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                        <span style={{ fontSize: "2.2rem" }}>{s.icon}</span>
-                       <span style={{ fontSize: "0.7rem", background: "var(--primary-light)", color: "var(--primary-color)", padding: "2px 10px", borderRadius: "10px", fontWeight: "800" }}>{grade}</span>
+                        <div style={{ display: "flex", gap: "5px" }}>
+                           <span style={{ fontSize: "0.65rem", background: s.is_public ? "#e6ffec" : "#f0f0f0", color: s.is_public ? "var(--accent-green)" : "#888", padding: "2px 8px", borderRadius: "10px", fontWeight: "800" }}>{s.is_public ? "PUBLIC" : "PRIVATE"}</span>
+                           <span style={{ fontSize: "0.65rem", background: "var(--primary-light)", color: "var(--primary-color)", padding: "2px 8px", borderRadius: "10px", fontWeight: "800" }}>{grade}</span>
+                        </div>
                     </div>
                     <h4 style={{ margin: 0, fontSize: "1.1rem" }}>{s.title}</h4>
                     <div style={{ display: "flex", gap: "8px", fontSize: "0.75rem", color: "var(--text-muted)" }}>
@@ -296,9 +324,15 @@ export default function AdminDashboard() {
                   <p style={{ fontSize: "0.85rem", opacity: 0.6 }}>{selectedSubject.grade} • Code: <strong>{selectedSubject.code}</strong></p>
                 </div>
               </div>
-              <button className="btn-secondary" style={{ background: "#fff5f5", color: "#e03e3e", border: "1px solid #ffe3e3", padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => handleDeleteSubject(selectedSubject.id)}>
-                Delete Subject 🗑️
-              </button>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button className={selectedSubject.is_public ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem", background: selectedSubject.is_public ? "var(--accent-green)" : "" }} onClick={() => handleToggleVisibility(!selectedSubject.is_public)}>
+                  {selectedSubject.is_public ? "Make Private 🔒" : "Make Public 🌍"}
+                </button>
+                <button className="btn-secondary" style={{ background: "#fff5f5", color: "#e03e3e", border: "1px solid #ffe3e3", padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => handleDeleteSubject(selectedSubject.id)}>
+                  Delete Subject 🗑️
+                </button>
+              </div>
+
             </div>
           </div>
 
@@ -408,6 +442,21 @@ export default function AdminDashboard() {
                 )}
              </div>
           </div>
+
+          {contentType === "subject" && (
+            <div className="premium-card" style={{ padding: "1.2rem", marginBottom: "1.5rem", background: "#f8f9fa", border: "2px dashed #eee", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <b style={{ display: "block", fontSize: "0.9rem" }}>Public for this Grade 🌍</b>
+                <p style={{ fontSize: "0.75rem", opacity: 0.6 }}>Every student in {newContent.grade} will see this automatically.</p>
+              </div>
+              <input 
+                type="checkbox" 
+                style={{ width: "24px", height: "24px", cursor: "pointer" }} 
+                checked={newContent.isPublic}
+                onChange={(e) => setNewContent({...newContent, isPublic: e.target.checked})}
+              />
+            </div>
+          )}
 
           <div style={{ marginBottom: "1.5rem" }}>
              <label style={{ fontSize: "0.8rem", opacity: 0.6, marginBottom: "4px", display: "block" }}>{contentType === "subject" ? "Subject Title" : "Title"}</label>

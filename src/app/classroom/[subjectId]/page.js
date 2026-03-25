@@ -13,6 +13,7 @@ export default function ClassroomPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("stream");
   const [errorMessage, setErrorMessage] = useState("");
+  const [progress, setProgress] = useState({});
 
   // Teacher: create task
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -25,6 +26,9 @@ export default function ClassroomPage() {
       if (!stored) { router.push("/"); return; }
       const parsed = JSON.parse(stored);
       setUser(parsed);
+
+      const storedProgress = JSON.parse(localStorage.getItem("catProgress") || "{}");
+      setProgress(storedProgress);
 
       try {
         const res = await fetch(`/api/classroom/${subjectId}?userId=${parsed.id}`);
@@ -230,25 +234,32 @@ export default function ClassroomPage() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {subject.lessons.map((lesson, idx) => (
-                  <div key={lesson.id} className="premium-card" style={{ padding: "1.5rem 2rem", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-                    onClick={() => router.push(`/lessons/${subject.grade}/${subject.title}/${lesson.id}`)}>
-                    <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                      <div style={{
-                        width: "48px", height: "48px", borderRadius: "50%",
-                        background: lesson.type === "quiz" ? "var(--primary-light)" : "var(--secondary-light)",
-                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem", flexShrink: 0
-                      }}>{lesson.type === "quiz" ? "📝" : "📖"}</div>
-                      <div>
-                        <h3 style={{ fontSize: "1.1rem", marginBottom: "3px" }}>{lesson.title}</h3>
-                        <p style={{ opacity: 0.5, fontSize: "0.8rem" }}>{lesson.type === "quiz" ? "Exam" : "Lesson"} • Posted by Teacher</p>
+                {subject.lessons.map((lesson, idx) => {
+                  const isCompleted = progress[subject.grade]?.[subject.title]?.includes(lesson.id);
+                  const canTake = !isCompleted || lesson.type === "lecture" || isTeacher;
+
+                  return (
+                    <div key={lesson.id} className="premium-card" style={{ padding: "1.5rem 2rem", cursor: canTake ? "pointer" : "default", display: "flex", justifyContent: "space-between", alignItems: "center", opacity: !canTake ? 0.7 : 1 }}
+                      onClick={() => canTake ? router.push(`/lessons/${subject.grade}/${subject.title}/${lesson.id}`) : alert("🔒 You have already finished this exam! 🐾")}>
+                      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <div style={{
+                          width: "48px", height: "48px", borderRadius: "50%",
+                          background: isCompleted ? "var(--accent-green)" : (lesson.type === "quiz" ? "var(--primary-light)" : "var(--secondary-light)"),
+                          display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem", flexShrink: 0
+                        }}>
+                          {isCompleted ? "✅" : (lesson.type === "quiz" ? "📝" : "📖")}
+                        </div>
+                        <div>
+                          <h3 style={{ fontSize: "1.1rem", marginBottom: "3px" }}>{lesson.title}</h3>
+                          <p style={{ opacity: 0.5, fontSize: "0.8rem" }}>{lesson.type === "quiz" ? "Exam" : "Lesson"} • {isCompleted ? "Completed" : "New Post"}</p>
+                        </div>
                       </div>
+                      <button className="btn-secondary" style={{ padding: "8px 20px", fontSize: "0.8rem", flexShrink: 0, background: isCompleted ? "#e6ffec" : "", color: isCompleted ? "var(--accent-green)" : "" }}>
+                        {isCompleted ? (lesson.type === "quiz" ? "Finished ✅" : "Review 📖") : (lesson.type === "quiz" ? "Take Exam" : "Read →")}
+                      </button>
                     </div>
-                    <button className="btn-secondary" style={{ padding: "8px 20px", fontSize: "0.8rem", flexShrink: 0 }}>
-                      {lesson.type === "quiz" ? "Take Exam" : "Read"} →
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -267,23 +278,28 @@ export default function ClassroomPage() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                {subject.lessons.map((lesson, idx) => (
-                  <div key={lesson.id} className="premium-card" style={{ padding: "1.2rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
-                    onClick={() => router.push(`/lessons/${subject.grade}/${subject.title}/${lesson.id}`)}>
-                    <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                      <div style={{
-                        width: "40px", height: "40px", borderRadius: "12px",
-                        background: lesson.type === "quiz" ? "#fff5f8" : "#f0f7ff",
-                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem"
-                      }}>{lesson.type === "quiz" ? "📝" : "📖"}</div>
-                      <div>
-                        <h4 style={{ margin: 0 }}>{lesson.title}</h4>
-                        <span style={{ fontSize: "0.75rem", opacity: 0.5 }}>{lesson.type === "quiz" ? "Exam" : "Reading Material"}</span>
+                {subject.lessons.map((lesson, idx) => {
+                  const isCompleted = progress[subject.grade]?.[subject.title]?.includes(lesson.id);
+                  const canTake = !isCompleted || lesson.type === "lecture" || isTeacher;
+
+                  return (
+                    <div key={lesson.id} className="premium-card" style={{ padding: "1.2rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: canTake ? "pointer" : "default", opacity: !canTake ? 0.7 : 1 }}
+                      onClick={() => canTake ? router.push(`/lessons/${subject.grade}/${subject.title}/${lesson.id}`) : alert("🔒 You have already finished this exam! 🐾")}>
+                      <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                        <div style={{
+                          width: "40px", height: "40px", borderRadius: "12px",
+                          background: isCompleted ? "#e6ffec" : (lesson.type === "quiz" ? "#fff5f8" : "#f0f7ff"),
+                          display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.1rem", color: isCompleted ? "var(--accent-green)" : "inherit"
+                        }}>{isCompleted ? "✅" : (lesson.type === "quiz" ? "📝" : "📖")}</div>
+                        <div>
+                          <h4 style={{ margin: 0 }}>{lesson.title}</h4>
+                          <span style={{ fontSize: "0.75rem", opacity: 0.5 }}>{lesson.type === "quiz" ? "Exam" : "Reading Material"} {isCompleted && "• Done"}</span>
+                        </div>
                       </div>
+                      <span style={{ fontSize: "0.8rem", color: isCompleted ? "var(--accent-green)" : "var(--primary-color)", fontWeight: "700" }}>{isCompleted ? "Done ✅" : "Open →"}</span>
                     </div>
-                    <span style={{ fontSize: "0.8rem", color: "var(--primary-color)", fontWeight: "700" }}>Open →</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

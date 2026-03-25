@@ -7,7 +7,14 @@ export async function GET(req) {
     const userId = searchParams.get("userId");
     const role = searchParams.get("role");
 
-    // 1. Fetch subjects
+    // 1. Fetch user grade if student
+    let userGrade = null;
+    if (userId && role === 'Student') {
+      const { data: userData } = await supabase.from("users").select("grade").eq("id", userId).single();
+      if (userData) userGrade = userData.grade;
+    }
+
+    // 2. Fetch subjects
     let subjects;
     try {
       let subjQuery = supabase.from("subjects").select("*");
@@ -47,11 +54,12 @@ export async function GET(req) {
     const isStudent = role === 'Student';
 
     const formatted = subjects.reduce((acc, subj) => {
-      // Filter by enrollment for students
+      // Filter for students: must be enrolled OR subject is public and matches their grade
       const subjectEnrollments = allEnrollments.filter(e => e.subject_id === subj.id);
       const isEnrolled = subjectEnrollments.some(e => e.user_id == userId);
+      const isPublicMatch = subj.is_public && subj.grade === userGrade;
       
-      if (isStudent && !isEnrolled) return acc;
+      if (isStudent && !isEnrolled && !isPublicMatch) return acc;
 
       if (!acc[subj.grade]) acc[subj.grade] = [];
       acc[subj.grade].push({
@@ -102,6 +110,7 @@ export async function POST(req) {
     const questions = body.questions;
     const joinSubjectCode = body.joinSubjectCode;
     const userId = body.userId;
+    const isPublic = body.isPublic || false;
 
     // Handle joining a subject via code
     if (joinSubjectCode && userId) {
@@ -157,16 +166,19 @@ export async function POST(req) {
       let newSubj, createSubjErr;
       const result1 = await supabase
         .from("subjects")
-        .insert([{ grade, title: subjectTitle, icon: subjectIcon, code, created_by: userId }])
+        .insert([{ grade, title: subjectTitle, icon: subjectIcon, code, created_by: userId, is_public: isPublic }])
         .select()
         .single();
       
-      if (result1.error && result1.error.message?.includes("created_by")) {
-        // Column doesn't exist yet — insert without it
-        console.warn("'created_by' column not found, inserting without it.");
+      if (result1.error && (result1.error.message?.includes("created_by") || result1.error.message?.includes("is_public"))) {
+        // Column doesn't exist yet — try inserting with what we can
+        const fields = { grade, title: subjectTitle, icon: subjectIcon, code };
+        if (!result1.error.message?.includes("created_by")) fields.created_by = userId;
+        if (!result1.error.message?.includes("is_public")) fields.is_public = isPublic;
+
         const result2 = await supabase
           .from("subjects")
-          .insert([{ grade, title: subjectTitle, icon: subjectIcon, code }])
+          .insert([fields])
           .select()
           .single();
         if (result2.error) throw result2.error;

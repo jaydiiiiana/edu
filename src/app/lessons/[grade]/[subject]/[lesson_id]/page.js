@@ -16,6 +16,7 @@ export default function W3StyleLessonPage() {
   const [isAnswered, setIsAnswered] = useState(false);
   const [correctAnswer, setCorrectAnswer] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [alreadyDone, setAlreadyDone] = useState(false);
 
   const grade = decodeURIComponent(params.grade);
   const subjectTitle = decodeURIComponent(params.subject);
@@ -56,6 +57,17 @@ export default function W3StyleLessonPage() {
 
   const lesson = lessonsInSubject.find(l => l.id == lessonId); // Use == for ID match
   const lessonIdx = lessonsInSubject.findIndex(l => l.id == lessonId);
+
+  useEffect(() => {
+    if (lesson && lesson.type === "quiz") {
+      const currentProgress = JSON.parse(localStorage.getItem("catProgress") || "{}");
+      const isDone = currentProgress[grade]?.[subjectTitle]?.includes(lessonId);
+      if (isDone) {
+        setFinished(true);
+        setAlreadyDone(true);
+      }
+    }
+  }, [lesson, grade, subjectTitle, lessonId]);
 
   if (!lesson) return <div>Lesson not found 😿</div>;
 
@@ -194,10 +206,10 @@ export default function W3StyleLessonPage() {
                 {finished ? (
                   <div className="premium-card" style={{ textAlign: "center", padding: "3rem" }}>
                      <h2>Quiz Finished! 🎉</h2>
-                     <p>You earned {score} EXP points.</p>
+                     <p>{alreadyDone ? "You have already completed this exam! ✅" : `You earned ${score} EXP points.`}</p>
                      <button className="btn-primary" onClick={() => {
                         if (lessonIdx < lessonsInSubject.length - 1) goToLesson(lessonsInSubject[lessonIdx+1].id);
-                        else router.push(`/lessons/${grade}/${subjectTitle}`);
+                        else router.push(`/dashboard`);
                      }}>
                         {lessonIdx < lessonsInSubject.length - 1 ? "Next Chapter 🐾" : "Return Home"}
                      </button>

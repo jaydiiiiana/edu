@@ -13,6 +13,8 @@ export default function AdminDashboard() {
   const [subjectStudents, setSubjectStudents] = useState([]);
   const [roleUpdating, setRoleUpdating] = useState(null); // track which user is updating
   const [searchQuery, setSearchQuery] = useState("");
+  const [isExpired, setIsExpired] = useState(false);
+  const [expiryDate, setExpiryDate] = useState(null);
   
   // Create Content State
   const [contentType, setContentType] = useState("subject"); 
@@ -58,6 +60,22 @@ export default function AdminDashboard() {
            router.push("/");
            return;
          }
+         
+         if (storedUser.role === 'Creator') {
+           router.push("/creator");
+           return;
+         }
+
+          // Check for Subscription Expiration (Headmaster only)
+          if (storedUser.role === 'Headmaster' && storedUser.subscription_expires_at) {
+             const now = new Date();
+             const exp = new Date(storedUser.subscription_expires_at);
+             if (now > exp) {
+               setIsExpired(true);
+               setExpiryDate(exp.toLocaleDateString());
+             }
+          }
+
          setCurrentUser(storedUser);
          if (storedUser.role === 'Teacher') setActiveTab("subjects");
 
@@ -264,7 +282,24 @@ export default function AdminDashboard() {
     } catch (e) { alert("Failed! " + e.message); }
   };
 
-  if (loading) return <div className="flex-center" style={{ height: "100vh" }}>Loading... 🐾</div>;
+  if (loading) return <div className="flex-center" style={{ height: "100vh" }}>Accessing Cat Academy Academy... 🐾</div>;
+
+  if (isExpired) {
+    return (
+      <div className="flex-center" style={{ height: "100vh", background: "#fff5f5", padding: "2rem", textAlign: "center" }}>
+        <div className="premium-card cat-ears" style={{ maxWidth: "500px", border: "2px solid #ef4444" }}>
+           <div style={{ fontSize: "5rem", marginBottom: "1rem" }}>🔒🏫</div>
+           <h2 style={{ color: "#ef4444", marginBottom: "1rem" }}>School Access Frozen</h2>
+           <p style={{ color: "#666", lineHeight: "1.6", marginBottom: "2rem" }}>
+              Your Headmaster subscription expired on **{expiryDate}**. 🐾 <br />
+              All school operations, including for your teachers and students, have been temporarily paused.
+           </p>
+           <p style={{ fontWeight: "800", marginBottom: "2rem" }}>Please contact the system Creator to renew your subscription. 🎫</p>
+           <button className="btn-secondary" onClick={() => router.push("/")}>Back to Login</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container" style={{ padding: "clamp(1rem, 5vw, 3rem) 0" }}>
@@ -299,7 +334,22 @@ export default function AdminDashboard() {
 
       {/* ========== USERS TAB ========== */}
       {activeTab === "users" && (() => {
-        const filteredUsers = users.filter(u => u.name?.toLowerCase().includes(searchQuery.toLowerCase()));
+        const filteredUsers = users.filter(u => {
+          const matchesSearch = u.name?.toLowerCase().includes(searchQuery.toLowerCase());
+          if (!matchesSearch) return false;
+          
+          if (currentUser.role === 'Creator') return true;
+          // Headmasters see people they invited or their teachers invited
+          if (currentUser.role === 'Headmaster') {
+            const teachers = users.filter(usr => usr.role === 'Teacher' && usr.invited_by === currentUser.id).map(t => t.id);
+            return u.invited_by === currentUser.id || teachers.includes(u.invited_by) || u.id === currentUser.id;
+          }
+          // Teachers only see their invited students or themselves
+          if (currentUser.role === 'Teacher') {
+            return u.invited_by === currentUser.id || u.id === currentUser.id;
+          }
+          return false;
+        });
         
         const grouped = filteredUsers.reduce((acc, u) => {
           if (u.role === 'Headmaster') {
@@ -775,8 +825,9 @@ export default function AdminDashboard() {
                     <tr style={{ borderBottom: "2px solid #f0f0f0", fontSize: "0.8rem", color: "#666" }}>
                       <th style={{ padding: "10px" }}>Code</th>
                       <th style={{ padding: "10px" }}>Role to Grant</th>
+                      <th style={{ padding: "10px" }}>Action</th>
                       <th style={{ padding: "10px" }}>Status</th>
-                      <th style={{ padding: "10px" }}>Created</th>
+                      <th style={{ padding: "10px" }}>Expiring</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -787,13 +838,26 @@ export default function AdminDashboard() {
                           <span style={{ fontSize: "0.75rem", background: "#f0f0f0", padding: "3px 8px", borderRadius: "10px" }}>{inv.role_to_grant}</span>
                         </td>
                         <td style={{ padding: "12px" }}>
+                           {!inv.is_used && (
+                             <button 
+                               style={{ padding: "4px 10px", borderRadius: "8px", background: "var(--primary-color)", color: "white", border: "none", fontSize: "0.7rem", fontWeight: "800", cursor: "pointer" }}
+                               onClick={() => {
+                                 navigator.clipboard.writeText(inv.code);
+                                 alert("Code Copied! 📋");
+                               }}
+                             >COPY</button>
+                           )}
+                        </td>
+                        <td style={{ padding: "12px" }}>
                            {inv.is_used ? (
                              <span style={{ color: "#999", fontSize: "0.8rem" }}>✅ Used</span>
                            ) : (
-                             <span style={{ color: "var(--accent-green)", fontWeight: "800", fontSize: "0.8rem" }}>🎟️ Active</span>
+                             <span style={{ color: "var(--accent-green)", fontWeight: "800", fontSize: "0.8rem" }}>🎫 Active</span>
                            )}
                         </td>
-                        <td style={{ padding: "12px", fontSize: "0.75rem", opacity: 0.5 }}>{new Date(inv.created_at).toLocaleDateString()}</td>
+                        <td style={{ padding: "12px", fontSize: "0.75rem", opacity: 0.5 }}>
+                           {inv.is_used ? '-' : '24h Left'}
+                        </td>
                       </tr>
                     ))}
                     {(!invites || invites.length === 0) && (

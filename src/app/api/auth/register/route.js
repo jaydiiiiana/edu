@@ -19,9 +19,13 @@ export async function POST(req) {
     // 1. Verify Code and Determine Role
     let role = "Student"; // Default if not using strict codes
     let creatorId = null;
+    let expirationDate = null;
 
     if (verificationCode) {
-      const codeRes = await fetch(`${supabaseUrl}/rest/v1/registration_codes?code=eq.${verificationCode}&is_used=eq.false&select=*`, {
+      const oneDayAgo = new Date();
+      oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+      const codeRes = await fetch(`${supabaseUrl}/rest/v1/registration_codes?code=eq.${verificationCode}&is_used=eq.false&created_at=gte.${oneDayAgo.toISOString()}&select=*`, {
         headers: { "apikey": supabaseKey, "Authorization": `Bearer ${supabaseKey}` }
       });
       const [invite] = await codeRes.json();
@@ -32,6 +36,13 @@ export async function POST(req) {
       
       role = invite.role_to_grant;
       creatorId = invite.created_by; // This links the user to their creator/school
+
+      // Calculate expiration date
+      if (invite.duration_months && invite.duration_months > 0) {
+        const now = new Date();
+        now.setMonth(now.getMonth() + invite.duration_months);
+        expirationDate = now.toISOString();
+      }
 
       // 2. Mark code as used
       await fetch(`${supabaseUrl}/rest/v1/registration_codes?id=eq.${invite.id}`, {
@@ -73,6 +84,7 @@ export async function POST(req) {
       grade,
       role: role,
       invited_by: creatorId, // Keep track of who invited them
+      subscription_expires_at: expirationDate, // Subscription control
       exp: 0,
       level: 1,
       created_at: new Date().toISOString()

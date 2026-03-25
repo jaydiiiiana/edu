@@ -14,6 +14,17 @@ export async function GET(req) {
     
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+
+    // 1. Delete Expired Codes (Lazy Cleanup)
+    await supabase
+      .from("registration_codes")
+      .delete()
+      .lt("created_at", oneDayAgo.toISOString())
+      .eq("is_used", false);
+
+    // 2. Fetch Active Codes
     const { data: invites, error } = await supabase
       .from("registration_codes")
       .select("*")
@@ -29,7 +40,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const { userId, roleToGrant } = await req.json();
+    const { userId, roleToGrant, durationMonths } = await req.json();
     
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -57,6 +68,7 @@ export async function POST(req) {
         code: newCode,
         role_to_grant: roleToGrant,
         created_by: userId,
+        duration_months: durationMonths || 1, // Default to 1 month
         is_used: false
       }])
       .select()

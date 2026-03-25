@@ -9,6 +9,9 @@ export default function Dashboard() {
   const [joinCode, setJoinCode] = useState("");
   const [allSubjects, setAllSubjects] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [showAnnouncements, setShowAnnouncements] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -57,6 +60,24 @@ export default function Dashboard() {
         if (Array.isArray(annData)) setAnnouncements(annData);
         
         setAllSubjects(subjects);
+
+        // Generate Notifications
+        const notifs = [];
+        // Add announcements to notifications
+        annData.slice(0, 5).forEach(a => {
+          notifs.push({ id: `ann-${a.id}`, type: 'announcement', title: "New Bulletin", message: a.content.substring(0, 40) + "...", date: a.created_at });
+        });
+        // Add new lessons/exams (last 3 days)
+        subjects.forEach(s => {
+          (s.lessons || []).forEach(l => {
+             const isNew = (new Date() - new Date(l.created_at || Date.now())) < 3 * 24 * 60 * 60 * 1000;
+             if (isNew) {
+               notifs.push({ id: `lesson-${l.id}`, type: 'lesson', title: `New in ${s.title}`, message: l.title, date: l.created_at });
+             }
+          });
+        });
+        setNotifications(notifs.sort((a,b) => new Date(b.date) - new Date(a.date)));
+
       } catch (e) { 
         console.error("Data fetch failed", e); 
         setAllSubjects([]);
@@ -110,9 +131,19 @@ export default function Dashboard() {
             <h1 style={{ color: "white", fontSize: "clamp(1.2rem, 4vw, 2.5rem)", marginBottom: "0.2rem" }}>Hi, {user.name}! 🐾</h1>
             <p style={{ fontSize: "clamp(0.8rem, 2.5vw, 1.1rem)", opacity: 0.9 }}>Welcome to your <strong>{user.grade}</strong> classroom!</p>
           </div>
-          <div style={{ background: "rgba(255,255,255,0.2)", padding: "0.6rem 1.2rem", borderRadius: "16px", backdropFilter: "blur(10px)", textAlign: "center" }}>
-            <div style={{ fontSize: "0.7rem", fontWeight: "800", textTransform: "uppercase", marginBottom: "2px" }}>Level</div>
-            <div style={{ fontSize: "1.8rem", fontWeight: "800" }}>{user.level}</div>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+            <div style={{ position: "relative", cursor: "pointer" }} onClick={() => setShowAnnouncements(true)}>
+               <span style={{ fontSize: "1.5rem" }}>📣</span>
+               {announcements.length > 0 && <div style={{ position: "absolute", top: "-5px", right: "-5px", background: "white", color: "var(--primary-color)", borderRadius: "50%", width: "16px", height: "16px", fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", border: "2px solid var(--primary-color)" }}>{announcements.length}</div>}
+            </div>
+            <div style={{ position: "relative", cursor: "pointer" }} onClick={() => setShowNotifications(true)}>
+               <span style={{ fontSize: "1.5rem" }}>🔔</span>
+               {notifications.length > 0 && <div style={{ position: "absolute", top: "-5px", right: "-5px", background: "#ff4d4d", color: "white", borderRadius: "50%", width: "16px", height: "16px", fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "900", border: "2px solid white" }}>{notifications.length}</div>}
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.2)", padding: "0.6rem 1.2rem", borderRadius: "16px", backdropFilter: "blur(10px)", textAlign: "center" }}>
+              <div style={{ fontSize: "0.7rem", fontWeight: "800", textTransform: "uppercase", marginBottom: "2px" }}>Level</div>
+              <div style={{ fontSize: "1.8rem", fontWeight: "800" }}>{user.level}</div>
+            </div>
           </div>
         </div>
 
@@ -215,6 +246,62 @@ export default function Dashboard() {
 
         </div>
       )}
+
+      {/* MODALS */}
+      {(showAnnouncements || showNotifications) && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(5px)", zIndex: 1000, display: "flex", justifyContent: "center", alignItems: "flex-end", padding: "1rem" }} onClick={() => { setShowAnnouncements(false); setShowNotifications(false); }}>
+           <div className="premium-card animate-slide-up" style={{ maxWidth: "500px", width: "100%", maxHeight: "80vh", overflowY: "auto", padding: "2rem", borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+                 <h2 style={{ margin: 0 }}>{showAnnouncements ? "Official Bulletins 📣" : "What's New? 🔔"}</h2>
+                 <button onClick={() => { setShowAnnouncements(false); setShowNotifications(false); }} style={{ background: "none", border: "none", fontSize: "1.5rem", cursor: "pointer" }}>✕</button>
+              </div>
+
+              {showAnnouncements ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                   {announcements.map(a => (
+                     <div key={a.id} style={{ padding: "1.2rem", background: "#f8f9fa", borderRadius: "15px", border: "1px solid #eee" }}>
+                        <div style={{ fontSize: "0.6rem", textTransform: "uppercase", fontWeight: "900", color: "#b8860b", marginBottom: "5px" }}>{new Date(a.created_at).toLocaleDateString()}</div>
+                        <p style={{ margin: 0, fontSize: "0.95rem", lineHeight: "1.5" }}>{a.content}</p>
+                     </div>
+                   ))}
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                   {notifications.length === 0 ? <p style={{ textAlign: "center", opacity: 0.5 }}>All caught up! ✨</p> : 
+                    notifications.map(n => (
+                      <div key={n.id} style={{ padding: "1rem", background: "#f8f9fa", borderRadius: "15px", display: "flex", gap: "12px", alignItems: "start" }}>
+                         <div style={{ fontSize: "1.2rem" }}>{n.type === 'announcement' ? '🖋️' : '📚'}</div>
+                         <div>
+                            <b style={{ display: "block", fontSize: "0.85rem" }}>{n.title}</b>
+                            <p style={{ margin: 0, fontSize: "0.8rem", opacity: 0.7 }}>{n.message}</p>
+                            <span style={{ fontSize: "0.65rem", opacity: 0.4 }}>{new Date(n.date).toLocaleDateString()}</span>
+                         </div>
+                      </div>
+                    ))
+                   }
+                </div>
+              )}
+           </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .animate-slide-up {
+           animation: slideUp 0.3s ease-out;
+        }
+        @keyframes slideUp {
+           from { transform: translateY(100%); }
+           to { transform: translateY(0); }
+        }
+        .marquee-text {
+           display: inline-block;
+           animation: marquee 15s linear infinite;
+        }
+        @keyframes marquee {
+           0% { transform: translateX(100%); }
+           100% { transform: translateX(-100%); }
+        }
+      `}</style>
     </div>
   );
 }

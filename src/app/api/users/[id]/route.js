@@ -26,19 +26,11 @@ export async function PATCH(req, { params }) {
   try {
     const { id } = await params;
     const body = await req.json();
-    const { role, requesterId } = body;
+    const { role, grade, section, requesterId } = body;
 
     // --- Authorization checks ---
     if (!requesterId) {
       return NextResponse.json({ error: "Unauthorized: No requester ID provided." }, { status: 401 });
-    }
-
-    if (requesterId === id) {
-      return NextResponse.json({ error: "You cannot change your own role." }, { status: 403 });
-    }
-
-    if (role === "Headmaster") {
-      return NextResponse.json({ error: "Cannot promote users to Headmaster via this endpoint." }, { status: 403 });
     }
 
     // Verify requester is a Headmaster
@@ -49,24 +41,32 @@ export async function PATCH(req, { params }) {
       .single();
 
     if (reqError || !requester || requester.role !== "Headmaster") {
-      return NextResponse.json({ error: "Only the Headmaster can change user roles." }, { status: 403 });
+      return NextResponse.json({ error: "Only the Headmaster can modify user data." }, { status: 403 });
     }
 
-    // Verify target user is NOT a Headmaster
-    const { data: targetUser, error: targetError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", id)
-      .single();
+    // Protection: Cannot change self role or target another headmaster
+    if (role && requesterId === id) {
+      return NextResponse.json({ error: "You cannot change your own role." }, { status: 403 });
+    }
+    if (role === "Headmaster") {
+      return NextResponse.json({ error: "Cannot promote users to Headmaster." }, { status: 403 });
+    }
 
-    if (targetUser && targetUser.role === "Headmaster") {
-      return NextResponse.json({ error: "Cannot change the role of another Headmaster." }, { status: 403 });
+    // Verify target user is NOT another Headmaster (to protect the owner)
+    const { data: targetUser } = await supabase.from("users").select("role").eq("id", id).single();
+    if (role && targetUser?.role === "Headmaster") {
+       return NextResponse.json({ error: "Cannot change the role of another Headmaster." }, { status: 403 });
     }
 
     // --- Perform the update ---
+    const updateData = {};
+    if (role) updateData.role = role;
+    if (grade) updateData.grade = grade;
+    if (section) updateData.section = section;
+
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
-      .update({ role })
+      .update(updateData)
       .eq("id", id)
       .select("*")
       .single();

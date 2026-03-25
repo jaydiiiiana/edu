@@ -191,6 +191,21 @@ export default function AdminDashboard() {
     } catch (e) { alert("Failed: " + e.message); }
   };
 
+  // Change student grade/section
+  const handleGradeChange = async (userId, newGrade) => {
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ grade: newGrade, requesterId: currentUser.id })
+      });
+      if (res.ok) {
+        setUsers(users.map(u => u.id === userId ? { ...u, grade: newGrade } : u));
+        alert("Student moved to new Grade/Section! 🏫✅");
+      }
+    } catch (e) { alert("Failed! " + e.message); }
+  };
+
   // Save new content
   const handleSaveContent = async () => {
     try {
@@ -269,7 +284,17 @@ export default function AdminDashboard() {
                   </div>
                   <div>
                     <p style={{ fontWeight: "700", margin: 0, fontSize: "0.95rem" }}>{u.name}</p>
-                    <p style={{ fontSize: "0.75rem", opacity: 0.5, margin: 0 }}>{u.grade}</p>
+                    {currentUser?.role === 'Headmaster' ? (
+                       <select 
+                         style={{ fontSize: "0.7rem", border: "1px solid #eee", padding: "2px 5px", background: "none", borderRadius: "5px", color: "#888" }}
+                         value={u.grade}
+                         onChange={(e) => handleGradeChange(u.id, e.target.value)}
+                       >
+                          {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
+                       </select>
+                    ) : (
+                       <p style={{ fontSize: "0.75rem", opacity: 0.5, margin: 0 }}>{u.grade}</p>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>

@@ -14,6 +14,8 @@ export default function W3StyleLessonPage() {
   const [finished, setFinished] = useState(false);
   const [selected, setSelected] = useState(null);
   const [isAnswered, setIsAnswered] = useState(false);
+  const [correctAnswer, setCorrectAnswer] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const grade = decodeURIComponent(params.grade);
   const subjectTitle = decodeURIComponent(params.subject);
@@ -67,11 +69,24 @@ export default function W3StyleLessonPage() {
     localStorage.setItem("catProgress", JSON.stringify(currentProgress));
   };
 
-  const handleAnswer = (option) => {
+  const handleAnswer = async (option) => {
     if (isAnswered) return;
     setSelected(option);
     setIsAnswered(true);
-    if (option === lesson.questions[qIndex].a) setScore(score + 10);
+    
+    // Check answer server-side
+    try {
+      const res = await fetch(`/api/lessons/${lessonId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionIndex: qIndex, answer: option })
+      });
+      const data = await res.json();
+      setCorrectAnswer(data.correctAnswer);
+      if (data.correct) setScore(score + 10);
+    } catch (e) {
+      console.error("Answer check failed", e);
+    }
   };
 
   const handleNextInQuiz = () => {
@@ -79,6 +94,7 @@ export default function W3StyleLessonPage() {
       setQIndex(qIndex + 1);
       setSelected(null);
       setIsAnswered(false);
+      setCorrectAnswer(null);
     } else {
       setFinished(true);
       saveProgress();
@@ -92,7 +108,7 @@ export default function W3StyleLessonPage() {
     router.push(`/lessons/${grade}/${subjectTitle}/${id}`);
     setSidebarOpen(false);
     // Reset internal states
-    setQIndex(0); setScore(0); setFinished(false); setSelected(null); setIsAnswered(false);
+    setQIndex(0); setScore(0); setFinished(false); setSelected(null); setIsAnswered(false); setCorrectAnswer(null);
   };
 
   return (
@@ -181,7 +197,7 @@ export default function W3StyleLessonPage() {
                       {lesson.questions[qIndex].options.map((opt, i) => (
                         <button 
                           key={i} 
-                          className={`premium-card ${selected === opt ? (opt === lesson.questions[qIndex].a ? "correct" : "wrong") : ""}`}
+                          className={`premium-card ${selected === opt ? (opt === correctAnswer ? "correct" : "wrong") : (isAnswered && opt === correctAnswer ? "correct" : "")}`}
                           onClick={() => handleAnswer(opt)}
                           disabled={isAnswered}
                           style={{ padding: "1.5rem", textAlign: "left" }}

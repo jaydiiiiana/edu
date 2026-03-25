@@ -12,6 +12,19 @@ export async function GET(req, { params }) {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
 
+    // Fetch user role
+    let userRole = "Student";
+    if (userId) {
+      const { data: userData } = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", userId)
+        .single();
+      if (userData) userRole = userData.role || "Student";
+    }
+
+    const isTeacher = userRole === "Teacher" || userRole === "Headmaster";
+
     // Fetch the subject
     const { data: subject, error: subjErr } = await supabase
       .from("subjects")
@@ -21,12 +34,43 @@ export async function GET(req, { params }) {
 
     if (subjErr) throw new Error("Subject not found! 😿");
 
+    // Check access: teacher must own the subject, student must be enrolled
+    if (isTeacher) {
+      // Teachers can only manage their own subjects (Headmaster can see all)
+      if (userRole === "Teacher" && subject.created_by && subject.created_by != userId) {
+        return NextResponse.json({ error: "You don't own this subject! 😿" }, { status: 403 });
+      }
+    } else {
+      // Students must be enrolled
+      const { data: enrollment } = await supabase
+        .from("subject_enrollments")
+        .select("user_id")
+        .eq("user_id", userId)
+        .eq("subject_id", subjectId)
+        .maybeSingle();
+
+      if (!enrollment) {
+        return NextResponse.json({ error: "You are not enrolled in this class! 😿" }, { status: 403 });
+      }
+    }
+
     // Fetch lessons
     const { data: lessons } = await supabase
       .from("lessons")
       .select("*")
       .eq("subject_id", subjectId)
       .order("display_order", { ascending: true });
+
+    // For students: strip quiz answers so they can't cheat
+    const safeLessons = (lessons || []).map(l => {
+      if (!isTeacher && l.type === "quiz" && l.questions) {
+        return {
+          ...l,
+          questions: l.questions.map(q => ({ q: q.q, options: q.options }))
+        };
+      }
+      return l;
+    });
 
     // Fetch enrolled students with user details
     const { data: enrollments } = await supabase
@@ -47,9 +91,12 @@ export async function GET(req, { params }) {
     return NextResponse.json({
       subject: {
         ...subject,
-        lessons: lessons || []
+        // Students should NOT see invite code
+        code: isTeacher ? subject.code : undefined,
+        lessons: safeLessons
       },
-      students
+      // Students should NOT see the student list
+      students: isTeacher ? students : undefined
     });
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -44,19 +44,23 @@ export async function GET(req) {
     const allLessons = lessonsRes.data || [];
     const allEnrollments = enrollmentsRes.data || [];
 
+    const isStudent = role === 'Student';
+
     const formatted = subjects.reduce((acc, subj) => {
       // Filter by enrollment for students
       const subjectEnrollments = allEnrollments.filter(e => e.subject_id === subj.id);
       const isEnrolled = subjectEnrollments.some(e => e.user_id == userId);
       
-      if (role === 'Student' && !isEnrolled) return acc;
+      if (isStudent && !isEnrolled) return acc;
 
       if (!acc[subj.grade]) acc[subj.grade] = [];
       acc[subj.grade].push({
         id: subj.id,
         title: subj.title,
         icon: subj.icon,
-        code: subj.code,
+        // Students should NOT see the invite code or student list
+        code: isStudent ? undefined : subj.code,
+        studentsCount: subjectEnrollments.length,
         lessons: allLessons
           .filter(l => l.subject_id === subj.id)
           .map(l => ({
@@ -64,10 +68,13 @@ export async function GET(req) {
             title: l.title,
             type: l.type,
             content: l.content,
-            questions: l.questions,
+            // Students should NOT see quiz answers in the subject list
+            questions: isStudent && l.type === 'quiz'
+              ? (l.questions || []).map(q => ({ q: q.q, options: q.options }))
+              : l.questions,
             order: l.display_order
           })),
-        students: subjectEnrollments.map(e => e.users?.name || "Anonymous")
+        students: isStudent ? undefined : subjectEnrollments.map(e => e.users?.name || "Anonymous")
       });
       return acc;
     }, {});
@@ -113,10 +120,10 @@ export async function POST(req) {
       // Check if already enrolled
       const { data: existing } = await supabase
         .from("subject_enrollments")
-        .select("id")
+        .select("user_id")
         .eq("user_id", userId)
         .eq("subject_id", subject.id)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         return NextResponse.json({ success: true, subjectId: subject.id, message: "Already enrolled!" });
@@ -131,12 +138,17 @@ export async function POST(req) {
     }
 
     // 1. Get or Create Subject (for Teachers)
-    let { data: subject } = await supabase
+    // Also filter by created_by so two teachers can have subjects with same name
+    let subjectQuery = supabase
       .from("subjects")
       .select("*")
       .eq("grade", grade)
-      .eq("title", subjectTitle)
-      .maybeSingle();
+      .eq("title", subjectTitle);
+    
+    if (userId) {
+      subjectQuery = subjectQuery.eq("created_by", userId);
+    }
+    let { data: subject } = await subjectQuery.maybeSingle();
 
     if (!subject) {
       const code = "CAT-" + Math.random().toString(36).substr(2, 4).toUpperCase();

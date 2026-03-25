@@ -77,6 +77,7 @@ export async function GET(req) {
             title: l.title,
             type: l.type,
             content: l.content,
+            media_url: l.media_url,
             // Students should NOT see quiz answers in the subject list
             questions: isStudent && l.type === 'quiz'
               ? (l.questions || []).map(q => ({ q: q.q, options: q.options }))
@@ -108,6 +109,7 @@ export async function POST(req) {
     const lessonTitle = body.lessonTitle || body.title;
     const lessonType = body.lessonType || (body.questions ? "quiz" : "lecture");
     const lessonContent = body.lessonContent || body.content;
+    const mediaUrl = body.mediaUrl;
     const questions = body.questions;
     const joinSubjectCode = body.joinSubjectCode;
     const userId = body.userId;
@@ -206,6 +208,7 @@ export async function POST(req) {
         title: lessonTitle,
         type: lessonType,
         content: lessonContent,
+        media_url: mediaUrl,
         questions: questions,
         display_order: 0
       }])

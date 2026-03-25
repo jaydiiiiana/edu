@@ -8,9 +8,9 @@ const supabase = createClient(
 
 export async function POST(req, { params }) {
   try {
-    const { subjectId } = await params;
+    const { subjectId } = params;
     const body = await req.json();
-    const { userId, type, title, content, questions } = body;
+    const { userId, type, title, content, mediaUrl, questions } = body;
 
     if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -31,9 +31,10 @@ export async function POST(req, { params }) {
       .from("lessons")
       .insert([{
         title,
-        subject_id: parseInt(subjectId),
+        subject_id: subjectId,
         type: type === "quiz" ? "quiz" : "lecture",
         content: content || null,
+        media_url: mediaUrl || null,
         questions: questions || null
       }])
       .select();

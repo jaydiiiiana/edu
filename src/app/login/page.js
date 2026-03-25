@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 export default function Home() {
   const router = useRouter();
   const [mode, setMode] = useState("login"); // "login" or "register"
-  const [formData, setFormData] = useState({ name: "", password: "", age: "", grade: "" });
+  const [formData, setFormData] = useState({ name: "", password: "", age: "", grade: "", verificationCode: "" });
   const [loginForm, setLoginForm] = useState({ name: "", password: "" });
   const [step, setStep] = useState(1);
   const [error, setError] = useState("");
@@ -115,7 +115,11 @@ export default function Home() {
                   <label style={{ fontWeight: 800, fontSize: "0.9rem", color: "#666", marginLeft: "10px" }}>How old are you?</label>
                   <input type="number" placeholder="Enter age" style={{ width: "100%", padding: "14px 25px", borderRadius: "30px", border: "2px solid #f0f0f0", marginTop: "5px" }} value={formData.age} onChange={handleAgeChange} />
                 </div>
-                <button className="btn-primary" disabled={!formData.name || !formData.age} style={{ marginTop: "1rem" }} onClick={() => setStep(2)}>Next Step 🐾</button>
+                <div style={{ textAlign: "left" }}>
+                  <label style={{ fontWeight: 800, fontSize: "0.9rem", color: "#666", marginLeft: "10px" }}>Verification Code 🛡️</label>
+                  <input type="text" placeholder="Provided by your teacher/headmaster" style={{ width: "100%", padding: "14px 25px", borderRadius: "30px", border: "2px solid #f0f0f0", marginTop: "5px" }} value={formData.verificationCode} onChange={(e) => setFormData({ ...formData, verificationCode: e.target.value })} />
+                </div>
+                <button className="btn-primary" disabled={!formData.name || !formData.age || !formData.verificationCode} style={{ marginTop: "1rem" }} onClick={() => setStep(2)}>Next Step 🐾</button>
                 <p style={{ fontSize: "0.9rem", marginTop: "1rem" }}>
                   Already have one? <span style={{ color: "var(--primary-color)", cursor: "pointer", fontWeight: "bold" }} onClick={() => setMode("login")}>Login!</span>
                 </p>

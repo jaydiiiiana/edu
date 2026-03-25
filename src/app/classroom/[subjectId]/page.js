@@ -18,7 +18,7 @@ export default function ClassroomPage() {
   // Teacher: create task
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [taskType, setTaskType] = useState("lesson");
-  const [taskData, setTaskData] = useState({ title: "", content: "", questions: [{ q: "", options: ["", "", "", ""], a: "" }] });
+  const [taskData, setTaskData] = useState({ title: "", content: "", mediaUrl: "", questions: [{ q: "", options: ["", "", "", ""], a: "" }] });
 
   useEffect(() => {
     const init = async () => {
@@ -63,6 +63,7 @@ export default function ClassroomPage() {
           type: taskType,
           title: taskData.title,
           content: taskData.content,
+          mediaUrl: taskType === "lesson" ? taskData.mediaUrl : null,
           questions: taskType === "quiz" ? taskData.questions : null
         })
       });
@@ -187,11 +188,18 @@ export default function ClassroomPage() {
                     />
 
                     {taskType === "lesson" && (
-                      <textarea 
-                        placeholder="Write your lesson content here..."
-                        style={{ width: "100%", padding: "1.5rem", borderRadius: "15px", border: "1px solid #eee", minHeight: "200px", marginBottom: "1rem", background: "#fcfdfe", resize: "vertical" }}
-                        value={taskData.content} onChange={(e) => setTaskData({...taskData, content: e.target.value})}
-                      />
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "1rem" }}>
+                        <input 
+                          type="text" placeholder="Media URL (Image or YouTube link) 🖼️🎥" 
+                          style={{ width: "100%", padding: "14px", borderRadius: "15px", border: "1px solid #eee", fontSize: "1rem" }}
+                          value={taskData.mediaUrl} onChange={(e) => setTaskData({...taskData, mediaUrl: e.target.value})}
+                        />
+                        <textarea 
+                          placeholder="Write your lesson content here..."
+                          style={{ width: "100%", padding: "1.5rem", borderRadius: "15px", border: "1px solid #eee", minHeight: "200px", background: "#fcfdfe", resize: "vertical" }}
+                          value={taskData.content} onChange={(e) => setTaskData({...taskData, content: e.target.value})}
+                        />
+                      </div>
                     )}
 
                     {taskType === "quiz" && (

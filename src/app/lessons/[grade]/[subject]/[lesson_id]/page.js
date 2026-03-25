@@ -20,7 +20,7 @@ export default function W3StyleLessonPage() {
 
   const grade = decodeURIComponent(params.grade);
   const subjectTitle = decodeURIComponent(params.subject);
-  const lessonId = parseInt(params.lesson_id);
+  const lessonId = params.lesson_id;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -197,10 +197,26 @@ export default function W3StyleLessonPage() {
         {/* Actual Content */}
         <div className="container" style={{ maxWidth: "800px", margin: "0", padding: "3rem 2rem" }}>
            
-           {lesson.type === "lecture" ? (
-             <div style={{ fontSize: "1.2rem", lineHeight: "1.8", color: "#333", minHeight: "300px" }}>
-                {lesson.content}
-             </div>
+            {lesson.type === "lecture" ? (
+              <div style={{ fontSize: "1.2rem", lineHeight: "1.8", color: "#333", minHeight: "300px" }}>
+                 {lesson.media_url && (
+                    <div style={{ marginBottom: "2rem", borderRadius: "16px", overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.1)" }}>
+                       {lesson.media_url.includes('youtube.com') || lesson.media_url.includes('youtu.be') ? (
+                          <div style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
+                             <iframe 
+                                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }}
+                                src={`https://www.youtube.com/embed/${lesson.media_url.split('v=')[1] || lesson.media_url.split('/').pop()}`}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                             ></iframe>
+                          </div>
+                       ) : (
+                          <img src={lesson.media_url} alt={lesson.title} style={{ width: "100%", height: "auto", display: "block" }} />
+                       )}
+                    </div>
+                 )}
+                 <div style={{ whiteSpace: "pre-wrap" }}>{lesson.content}</div>
+              </div>
            ) : (
              <div className="quiz-container">
                 {finished ? (

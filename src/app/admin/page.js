@@ -22,20 +22,30 @@ export default function AdminDashboard() {
     subjectIcon: "📚",
     title: "",
     content: "",
+    mediaUrl: "",
     questions: [{ q: "", options: ["", "", "", ""], a: "" }],
     isPublic: false
   });
   const [newAnnouncement, setNewAnnouncement] = useState({ content: "", targetGrade: "" });
   const [announcements, setAnnouncements] = useState([]);
+  const [invites, setInvites] = useState([]);
 
-  const [sectionConfig, setSectionConfig] = useState({ "1": 5, "2": 3, "3": 3, "4": 3, "5": 3, "6": 6 });
+  const [sectionConfig, setSectionConfig] = useState({ 
+    "1": ["Mercury", "Venus", "Earth", "Mars", "Jupiter"], 
+    "2": ["Section 1", "Section 2", "Section 3"],
+    "3": ["Section 1", "Section 2", "Section 3"],
+    "4": ["Section 1", "Section 2", "Section 3"],
+    "5": ["Section 1", "Section 2", "Section 3"],
+    "6": ["Section 1", "Section 2", "Section 3"] 
+  });
+  
   const gradeOptions = [
     "Kinder 1", "Kinder 2",
     ...[1,2,3,4,5,6].flatMap(n => {
-       const sections = sectionConfig[n] || 3;
+       const sections = sectionConfig[n.toString()] || [];
        return [
          `Grade ${n}`,
-         ...Array.from({length: sections}, (_, i) => `Grade ${n} - Section ${i+1}`)
+         ...sections.map(s => `Grade ${n} - ${s}`)
        ];
     })
   ];
@@ -51,18 +61,21 @@ export default function AdminDashboard() {
          setCurrentUser(storedUser);
          if (storedUser.role === 'Teacher') setActiveTab("subjects");
 
-          const [uRes, cRes, aRes] = await Promise.all([
+          const [uRes, cRes, aRes, vRes] = await Promise.all([
             fetch("/api/users"),
             fetch(`/api/curriculum?userId=${storedUser.id}&role=${storedUser.role}`),
-            fetch("/api/announcements")
+            fetch("/api/announcements"),
+            fetch(`/api/invites?userId=${storedUser.id}`)
           ]);
          const userData = await uRes.json();
          const currData = await cRes.json();
          const annData = await aRes.json();
+         const invData = await vRes.json();
          
          if (!userData.error) setUsers(Array.isArray(userData) ? userData : []);
          if (!currData.error) setCustomCurriculum(currData);
          if (Array.isArray(annData)) setAnnouncements(annData);
+         if (Array.isArray(invData)) setInvites(invData);
        } catch (e) { 
          console.error("Fetch failed", e); 
        } finally { 
@@ -233,6 +246,7 @@ export default function AdminDashboard() {
         subjectTitle: newContent.subjectTitle,
         title: newContent.title,
         content: contentType === "lecture" ? newContent.content : null,
+        mediaUrl: contentType === "lecture" ? newContent.mediaUrl : null,
         questions: contentType === "quiz" ? newContent.questions : null,
         userId: currentUser.id
       };
@@ -267,7 +281,11 @@ export default function AdminDashboard() {
             <>
               <button className={activeTab === "users" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("users"); }}>Users 🐾</button>
               <button className={activeTab === "bulletin" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("bulletin"); }}>Bulletin 📜</button>
+              <button className={activeTab === "invites" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("invites"); }}>Invites 🎫</button>
             </>
+          )}
+          {currentUser?.role === 'Teacher' && (
+            <button className={activeTab === "invites" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("invites"); }}>Invites 🎫</button>
           )}
           <button className={activeTab === "subjects" || activeTab === "subjectDetail" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => { setSelectedSubject(null); setActiveTab("subjects"); }}>Subjects 🏷️</button>
           <button className={activeTab === "add" ? "btn-primary" : "btn-secondary"} style={{ padding: "8px 16px", fontSize: "0.8rem" }} onClick={() => setActiveTab("add")}>+ Create 📚</button>
@@ -329,16 +347,18 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                               <p style={{ fontWeight: "700", margin: 0, fontSize: "0.95rem" }}>{u.name}</p>
-                              {currentUser?.role === 'Headmaster' ? (
-                                 <select 
-                                   style={{ fontSize: "0.7rem", border: "1px solid #eee", padding: "2px 5px", background: "none", borderRadius: "5px", color: "#888" }}
-                                   value={u.grade}
-                                   onChange={(e) => handleGradeChange(u.id, e.target.value)}
-                                 >
-                                    {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
-                                 </select>
-                              ) : (
-                                 <p style={{ fontSize: "0.75rem", opacity: 0.5, margin: 0 }}>{u.grade}</p>
+                              {u.role === 'Student' && (
+                                currentUser?.role === 'Headmaster' ? (
+                                   <select 
+                                     style={{ fontSize: "0.7rem", border: "1px solid #eee", padding: "2px 5px", background: "none", borderRadius: "5px", color: "#888" }}
+                                     value={u.grade}
+                                     onChange={(e) => handleGradeChange(u.id, e.target.value)}
+                                   >
+                                      {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
+                                   </select>
+                                ) : (
+                                   <p style={{ fontSize: "0.75rem", opacity: 0.5, margin: 0 }}>{u.grade}</p>
+                                )
                               )}
                             </div>
                           </div>
@@ -615,12 +635,21 @@ export default function AdminDashboard() {
           </div>
 
           {contentType === "lecture" && (
-             <textarea 
-               style={{ width: "100%", padding: "1.2rem", borderRadius: "14px", border: "2px solid #eee", minHeight: "250px", marginBottom: "1.5rem", background: "#f9fafb", resize: "vertical" }} 
-               placeholder="Write your lesson content here..."
-               value={newContent.content}
-               onChange={(e) => setNewContent({...newContent, content: e.target.value})}
-             />
+             <>
+               <input 
+                 type="text" 
+                 placeholder="Media URL (Image or YouTube link) 🖼️🎥" 
+                 style={{ width: "100%", padding: "12px", borderRadius: "14px", border: "2px solid #eee", marginBottom: "1rem" }} 
+                 value={newContent.mediaUrl}
+                 onChange={(e) => setNewContent({...newContent, mediaUrl: e.target.value})}
+               />
+               <textarea 
+                 style={{ width: "100%", padding: "1.2rem", borderRadius: "14px", border: "2px solid #eee", minHeight: "250px", marginBottom: "1.5rem", background: "#f9fafb", resize: "vertical" }} 
+                 placeholder="Write your lesson content here..."
+                 value={newContent.content}
+                 onChange={(e) => setNewContent({...newContent, content: e.target.value})}
+               />
+             </>
           )}
 
           {contentType === "quiz" && (
@@ -656,46 +685,126 @@ export default function AdminDashboard() {
       {activeTab === "setup" && (
         <div className="premium-card">
            <h2 style={{ marginBottom: "1.5rem" }}>School Grade Setup 🏫</h2>
-           <p style={{ opacity: 0.6, fontSize: "0.9rem", marginBottom: "2rem" }}>Define how many sections each grade level has. These sections will appear in the registration list. 🐾</p>
+           <p style={{ opacity: 0.6, fontSize: "0.9rem", marginBottom: "2rem" }}>Customize your sections here. You can rename them (e.g., Section Mars) or add new ones. 🐾</p>
            
-           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "1.2rem" }}>
+           <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
               {[1, 2, 3, 4, 5, 6].map(n => (
-                <div key={n} className="premium-card" style={{ padding: "1.2rem", border: "1px solid #eee", background: "white", boxShadow: "0 5px 15px rgba(0,0,0,0.02)" }}>
-                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.8rem" }}>
-                      <label style={{ fontWeight: "800", color: "#444" }}>Grade {n}</label>
-                      <span style={{ fontSize: "0.65rem", color: "var(--primary-color)", background: "var(--primary-light)", padding: "2px 8px", borderRadius: "10px", fontWeight: "800" }}>STUDENTS</span>
+                <div key={n} style={{ padding: "1.5rem", border: "1px solid #eee", background: "#fcfdfe", borderRadius: "20px" }}>
+                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+                      <h3 style={{ margin: 0, color: "var(--primary-color)" }}>Grade {n}</h3>
+                      <button className="btn-secondary" style={{ padding: "5px 15px", fontSize: "0.75rem" }} onClick={() => {
+                        const newSections = [...(sectionConfig[n.toString()] || []), `Section ${(sectionConfig[n.toString()] || []).length + 1}`];
+                        setSectionConfig({ ...sectionConfig, [n]: newSections });
+                      }}>+ Add Section</button>
                    </div>
-                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <input 
-                        type="number" 
-                        min="0" 
-                        max="20"
-                        style={{ width: "100%", padding: "12px", borderRadius: "12px", border: "2px solid #f0f0f0", fontWeight: "700", fontSize: "1.1rem" }}
-                        value={sectionConfig[n] || 0}
-                        onChange={(e) => setSectionConfig({ ...sectionConfig, [n]: parseInt(e.target.value) || 0 })}
-                      />
-                      <span style={{ fontSize: "1.5rem" }}>🎒</span>
+                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px" }}>
+                      {(sectionConfig[n.toString()] || []).map((s, idx) => (
+                        <div key={idx} style={{ position: "relative" }}>
+                          <input 
+                            type="text" 
+                            style={{ width: "100%", padding: "12px", borderRadius: "12px", border: "1px solid #ddd", fontSize: "0.9rem", paddingRight: "35px" }}
+                            value={s}
+                            onChange={(e) => {
+                              const newSections = [...sectionConfig[n.toString()]];
+                              newSections[idx] = e.target.value;
+                              setSectionConfig({ ...sectionConfig, [n]: newSections });
+                            }}
+                          />
+                          <button 
+                            onClick={() => {
+                              const newSections = sectionConfig[n.toString()].filter((_, i) => i !== idx);
+                              setSectionConfig({ ...sectionConfig, [n]: newSections });
+                            }}
+                            style={{ position: "absolute", right: "10px", top: "50%", transform: "translateY(-50%)", border: "none", background: "none", color: "#ccc", cursor: "pointer", fontSize: "1.2rem" }}
+                          >×</button>
+                        </div>
+                      ))}
                    </div>
-                   <p style={{ fontSize: "0.75rem", opacity: 0.5, marginTop: "10px", margin: 0 }}>Number of sections for Grade {n}</p>
                 </div>
               ))}
            </div>
            
-           <div className="premium-card" style={{ marginTop: "2.5rem", background: "#fcfdfe", border: "1px dashed rgba(0,0,0,0.1)", padding: "1.5rem" }}>
-              <p style={{ margin: "0 0 1rem 0", fontWeight: "800", fontSize: "0.95rem", color: "#333" }}>Live Preview of Grade Options 📜</p>
+           <div className="premium-card" style={{ marginTop: "2.5rem", background: "white", border: "1px dashed rgba(255,133,179,0.3)", padding: "1.5rem" }}>
+              <p style={{ margin: "0 0 1rem 0", fontWeight: "800", fontSize: "0.95rem", color: "#333" }}>Live Preview of Final Selection List 📜</p>
               <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                  {gradeOptions.map(g => (
-                    <span key={g} style={{ fontSize: "0.7rem", background: "white", padding: "5px 12px", borderRadius: "20px", border: "1px solid #eee", boxShadow: "0 2px 5px rgba(0,0,0,0.03)", color: "#666" }}>{g}</span>
+                    <span key={g} style={{ fontSize: "0.7rem", background: "var(--primary-light)", padding: "5px 12px", borderRadius: "20px", color: "var(--primary-color)", fontWeight: "700" }}>{g}</span>
                  ))}
               </div>
            </div>
 
            <button className="btn-primary" style={{ marginTop: "2.5rem", width: "100%", padding: "1.4rem", fontSize: "1.1rem" }} onClick={() => {
-              // persistence could be added here later with an API call
-              alert("Section configuration updated! ✅ New students can now register for these sections.");
+              alert("School structure updated! 🎉 All selection menus will now show your custom section names.");
            }}>
-              Save School Structure 🚀
+              Save All Changes 🚀
            </button>
+        </div>
+      )}
+
+      {/* ========== INVITES TAB ========== */}
+      {activeTab === "invites" && (
+        <div className="premium-card">
+           <h2 style={{ marginBottom: "1.5rem" }}>Invite Center 🎫</h2>
+           <p style={{ opacity: 0.6, fontSize: "0.9rem", marginBottom: "2rem" }}>Generate verification codes for legit users. These codes will assign the correct role automatically upon registration. 🐾</p>
+           
+           <div className="grid-cols" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem", marginBottom: "2.5rem" }}>
+              {(currentUser?.role === 'Headmaster' || currentUser?.role === 'Creator') && (
+                <div className="premium-card" style={{ border: "1px solid #eee", background: "#f8f9ff" }}>
+                   <div style={{ fontSize: "2rem", marginBottom: "10px" }}>👩‍🏫</div>
+                   <h4 style={{ margin: "0 0 5px 0" }}>Invite a Teacher</h4>
+                   <p style={{ fontSize: "0.8rem", opacity: 0.5, marginBottom: "1.5rem" }}>Create a code for a new teacher to join this school.</p>
+                   <button className="btn-primary" style={{ width: "100%", padding: "10px" }} onClick={() => handleGenerateInvite('Teacher')}>Generate Teacher Code 🎫</button>
+                </div>
+              )}
+              
+              {(currentUser?.role === 'Teacher' || currentUser?.role === 'Headmaster') && (
+                <div className="premium-card" style={{ border: "1px solid #eee", background: "#fff5f8" }}>
+                   <div style={{ fontSize: "2rem", marginBottom: "10px" }}>🎒</div>
+                   <h4 style={{ margin: "0 0 5px 0" }}>Invite a Student</h4>
+                   <p style={{ fontSize: "0.8rem", opacity: 0.5, marginBottom: "1.5rem" }}>Create a code for a legit student to verify their account.</p>
+                   <button className="btn-secondary" style={{ width: "100%", padding: "10px", borderColor: "var(--primary-color)", color: "var(--primary-color)" }} onClick={() => handleGenerateInvite('Student')}>Generate Student Code 🎟️</button>
+                </div>
+              )}
+           </div>
+
+           <div className="premium-card" style={{ border: "1px solid #eee" }}>
+              <h3 style={{ marginBottom: "1.5rem" }}>Pending & Used Invites 📜</h3>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #f0f0f0", fontSize: "0.8rem", color: "#666" }}>
+                      <th style={{ padding: "10px" }}>Code</th>
+                      <th style={{ padding: "10px" }}>Role to Grant</th>
+                      <th style={{ padding: "10px" }}>Status</th>
+                      <th style={{ padding: "10px" }}>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(invites || []).map((inv, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #f9f9f9", fontSize: "0.9rem" }}>
+                        <td style={{ padding: "12px", fontWeight: "800", color: "var(--accent-blue)", fontFamily: "monospace" }}>{inv.code}</td>
+                        <td style={{ padding: "12px" }}>
+                          <span style={{ fontSize: "0.75rem", background: "#f0f0f0", padding: "3px 8px", borderRadius: "10px" }}>{inv.role_to_grant}</span>
+                        </td>
+                        <td style={{ padding: "12px" }}>
+                           {inv.is_used ? (
+                             <span style={{ color: "#999", fontSize: "0.8rem" }}>✅ Used</span>
+                           ) : (
+                             <span style={{ color: "var(--accent-green)", fontWeight: "800", fontSize: "0.8rem" }}>🎟️ Active</span>
+                           )}
+                        </td>
+                        <td style={{ padding: "12px", fontSize: "0.75rem", opacity: 0.5 }}>{new Date(inv.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                    {(!invites || invites.length === 0) && (
+                      <tr>
+                        <td colSpan="4" style={{ padding: "3rem", textAlign: "center", opacity: 0.5 }}>No codes generated yet. Click a button above to start! 🎫</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+           </div>
         </div>
       )}
     </div>
